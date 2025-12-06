@@ -1,13 +1,14 @@
 use clap::{Parser, Subcommand};
 use log::info;
 use std::env;
+use std::io::{self, Write};
 
 // Import core modules
-mod error;
 mod config;
 mod core;
-mod tools;
+mod error;
 mod knowledge;
+mod tools;
 
 // Import existing modules
 mod ai;
@@ -24,8 +25,9 @@ mod subagent;
 mod task;
 mod ui;
 
-// Import error type
-use crate::error::AppResult;
+// Import error type and config
+use crate::config::loader::ConfigLoader;
+use crate::error::{init_error_reporting, AppResult};
 
 // Import knowledge and task actions from their respective modules
 use knowledge_base::KnowledgeActions;
@@ -125,10 +127,20 @@ enum Commands {
     },
 }
 
+/// 引导用户进行首次配置
+fn guide_first_run(config_loader: &ConfigLoader) -> Result<(), Box<dyn std::error::Error>> {
+    // 使用交互式配置向导
+    config::wizard::run_wizard()?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    // Initialize error reporting system
+    crate::error::init_error_reporting();
 
     // Parse command line arguments
     let cli = Cli::parse();
@@ -140,11 +152,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting Codex v{}", env!("CARGO_PKG_VERSION"));
 
+    // Check if it's first run and guide user through configuration
+    let config_loader = ConfigLoader::new();
+    if config_loader.is_first_run(cli.config.as_deref()) {
+        guide_first_run(&config_loader)?;
+    }
+
+    // Load configuration
+    let config = config_loader.load(cli.config.as_deref())?;
+    let language = &config.app.language;
+
     // Handle commands
     match cli.command {
-        Some(Commands::Interactive {
-            tab
-        }) => {
+        Some(Commands::Interactive { tab }) => {
             // Start interactive UI mode
             cli::handle_interactive(tab.clone())?;
         }
@@ -186,13 +206,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         None => {
             // Default: enter solo mode for AI programming
-            println!("Welcome to Codex AI Programming Assistant");
-            println!("Entering solo mode for AI programming...");
-            
-            // TODO: 主人~ 这里需要实现solo模式的交互式输入
-            // For now, we'll start with a default task prompt
-            let default_task = "I need help with AI programming. Please guide me through the process.";
-            cli::handle_solo(default_task, 10).await?;
+            if language == "zh" {
+                println!("欢迎使用 Codex AI 编程助手");
+                println!("正在进入 solo 模式进行 AI 编程...");
+                let default_task = "我需要 AI 编程帮助。请指导我完成这个过程。";
+                println!("\n开始 solo 模式，任务: {}", default_task);
+                println!("最大步骤: 10");
+                cli::handle_solo(default_task, 10).await?;
+            } else {
+                println!("Welcome to Codex AI Programming Assistant");
+                println!("Entering solo mode for AI programming...");
+                let default_task =
+                    "I need help with AI programming. Please guide me through the process.";
+                println!("\nStarting solo mode for task: {}", default_task);
+                println!("Maximum steps: 10");
+                cli::handle_solo(default_task, 10).await?;
+            }
         }
     }
 

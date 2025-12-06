@@ -220,7 +220,7 @@ impl AIClient {
         let model_config = self
             .models
             .get(model_name.unwrap_or(&self.default_model))
-            .ok_or(crate::error::AppError::AI("未找到指定模型配置".to_string()))?;
+            .ok_or(crate::error::AppError::ai("未找到指定模型配置"))?;
 
         // 构建OpenAI API请求
         let chat_request = OpenAIChatRequest {
@@ -246,15 +246,15 @@ impl AIClient {
             .json(&chat_request)
             .send()
             .await
-            .map_err(|e| crate::error::AppError::AI(e.to_string()))?;
+            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
 
         // 检查响应状态
         if !response.status().is_success() {
             let error_body = response
                 .text()
                 .await
-                .map_err(|e| crate::error::AppError::AI(e.to_string()))?;
-            return Err(crate::error::AppError::AI(format!(
+                .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+            return Err(crate::error::AppError::ai(&format!(
                 "OpenAI API请求失败: {}",
                 error_body
             )));
@@ -264,15 +264,13 @@ impl AIClient {
         let openai_response: OpenAIChatResponse = response
             .json()
             .await
-            .map_err(|e| crate::error::AppError::AI(e.to_string()))?;
+            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
 
         // 提取响应内容
         let choice = openai_response
             .choices
             .first()
-            .ok_or(crate::error::AppError::AI(
-                "OpenAI API响应中没有选择项".to_string(),
-            ))?;
+            .ok_or(crate::error::AppError::ai("OpenAI API响应中没有选择项"))?;
 
         // 构建AIResponse
         Ok(AIResponse {

@@ -31,6 +31,8 @@ pub struct AppSettings {
     pub data_dir: PathBuf,
     /// 日志级别
     pub log_level: String,
+    /// 界面语言
+    pub language: String,
 }
 
 /// AI平台配置

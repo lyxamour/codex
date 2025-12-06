@@ -15,7 +15,7 @@ ratatui = { version = "0.24", features = ["crossterm"] }
 crossterm = { version = "0.27", features = ["event-stream"] }
 
 # Knowledge base
- tantivy = { version = "0.19" }
+tantivy = { version = "0.19" }
 sled = { version = "0.34" }
 
 # AI platform support
@@ -54,6 +54,8 @@ shell-words = "1.1"
 async-trait = "0.1"
 dirs = "6.0.0"
 thiserror = "2.0.17"
+eyre = "0.6"
+color-eyre = "0.6"
 
 
 [build-dependencies]
@@ -62,10 +64,10 @@ chrono = { version = "0.4" }
 
 [profile.release]
 # Optimize for size and performance
-opt-level = "z"  # Optimize for size
-lto = true       # Link-time optimization
+opt-level = "z"   # Optimize for size
+lto = true        # Link-time optimization
 codegen-units = 1 # Single codegen unit for better optimization
-strip = true     # Strip debug symbols
+strip = true      # Strip debug symbols
 panic = "abort"   # Abort on panic for smaller binary
 
 [profile.dev]
