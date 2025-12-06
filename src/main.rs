@@ -2,6 +2,14 @@ use clap::{Parser, Subcommand};
 use log::info;
 use std::env;
 
+// Import core modules
+mod error;
+mod config;
+mod core;
+mod tools;
+mod knowledge;
+
+// Import existing modules
 mod ai;
 mod cli;
 mod code;
@@ -15,6 +23,9 @@ mod solo;
 mod subagent;
 mod task;
 mod ui;
+
+// Import error type
+use crate::error::AppResult;
 
 // Import knowledge and task actions from their respective modules
 use knowledge_base::KnowledgeActions;
@@ -145,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Knowledge { action } => {
             // Handle knowledge base commands
-            cli::handle_knowledge(action.clone())?;
+            cli::handle_knowledge(format!("{:?}", action))?;
         }
         Commands::Scrape {
             urls,
@@ -157,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Task { action } => {
             // Handle task management
-            cli::handle_task(action.clone())?;
+            cli::handle_task(format!("{:?}", action))?;
         }
         Commands::Solo { task, steps } => {
             // Handle solo mode

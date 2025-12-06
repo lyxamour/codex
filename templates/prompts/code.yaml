@@ -1,0 +1,33 @@
+name: "code"
+description: "代码相关提示词模板"
+version: "1.0.0"
+category: "coding"
+tags: ["code", "programming", "development"]
+variables:
+  - name: "code"
+    type: "code"
+    description: "代码内容"
+    required: true
+  - name: "language"
+    type: "string"
+    description: "编程语言"
+    required: false
+  - name: "action"
+    type: "string"
+    description: "要执行的操作：explain|fix|improve"
+    required: true
+template: |
+  请对以下{{language}}代码执行{{action}}操作：
+  
+  ```{{language}}
+  {{code}}
+  ```
+  
+  请提供详细的分析和结果。
+examples:
+  - input: |
+      code: "fn main() { println!(\"Hello, world!\"); }"
+      language: "rust"
+      action: "explain"
+    output: |
+      这是一个Rust语言的Hello World程序...

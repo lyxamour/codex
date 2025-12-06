@@ -5,7 +5,10 @@ use crossterm::{
 use ratatui::{prelude::*, widgets::*};
 use std::error::Error;
 use std::io::stdout;
+use std::sync::Arc;
 use std::time::Duration;
+
+use crate::ai::adapter::AIClient;
 
 /// UI application state
 struct App {
@@ -23,10 +26,13 @@ struct App {
     output: Vec<String>,
     /// Scrolling offset for output
     output_offset: usize,
+    /// AI Client
+    ai_client: Arc<AIClient>,
 }
 
-impl Default for App {
-    fn default() -> Self {
+impl App {
+    /// Create a new App instance with AI client
+    fn new(ai_client: AIClient) -> Self {
         Self {
             active_tab: 0,
             tabs: vec![
@@ -41,12 +47,16 @@ impl Default for App {
             history_index: None,
             output: vec!["Welcome to Codex! Type 'help' for commands.".to_string()],
             output_offset: 0,
+            ai_client: Arc::new(ai_client),
         }
     }
 }
 
 /// Run the UI application
 pub fn run(tab: Option<String>) -> Result<(), Box<dyn Error>> {
+    // Initialize AI client
+    let ai_client = crate::ai::adapter::AIClient::new()?;
+
     // Initialize terminal
     terminal::enable_raw_mode()?;
     let mut stdout = stdout();
@@ -58,8 +68,8 @@ pub fn run(tab: Option<String>) -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create app with default state
-    let mut app = App::default();
+    // Create app with AI client
+    let mut app = App::new(ai_client);
 
     // Set initial tab if specified
     if let Some(tab_name) = tab {
@@ -310,8 +320,25 @@ fn process_input(app: &mut App, input: &str) -> Result<(), Box<dyn Error>> {
             }
         }
         _ => {
-            // Echo input as response for demo
-            app.output.push(format!("Echo: {}", input));
+            // Call AI client to generate response
+            app.output.push("Thinking...".to_string());
+
+            // Auto-scroll to bottom
+            app.output_offset = app.output.len().saturating_sub(1);
+
+            // Use tokio to handle async call
+            let ai_client = app.ai_client.clone();
+            let prompt = input.to_string();
+
+            // Run async task in blocking mode
+            let response = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?
+                .block_on(async move { ai_client.generate_response(&prompt, None).await })?;
+
+            // Replace "Thinking..." with actual response
+            app.output.pop();
+            app.output.push(format!("Codex: {}", response.content()));
         }
     }
 

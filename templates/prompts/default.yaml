@@ -1,0 +1,20 @@
+name: "default"
+description: "默认提示词模板"
+version: "1.0.0"
+category: "default"
+tags: ["default", "general"]
+variables:
+  - name: "query"
+    type: "string"
+    description: "用户查询内容"
+    required: true
+template: |
+  请回答以下问题：
+  {{query}}
+  
+  请提供详细、准确的回答，尽量使用清晰易懂的语言。
+examples:
+  - input: |
+      query: "什么是Rust语言？"
+    output: |
+      Rust是一种系统编程语言，注重安全性、并发性和性能...

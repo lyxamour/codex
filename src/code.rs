@@ -1,4 +1,5 @@
 use crate::ai::AIClient;
+use crate::error::{AppError, AppResult};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -114,17 +115,19 @@ impl CodeProgrammer {
     }
 
     /// Create a parser for a specific language
-    fn create_parser(language: CodeLanguage) -> Result<Parser, Box<dyn Error>> {
+    fn create_parser(language: CodeLanguage) -> AppResult<Parser> {
         let mut parser = Parser::new();
         let language = match language {
             CodeLanguage::Rust => tree_sitter_rust::language(),
             CodeLanguage::Python => tree_sitter_python::language(),
             CodeLanguage::JavaScript => tree_sitter_javascript::language(),
             CodeLanguage::TypeScript => tree_sitter_typescript::language_typescript(),
-            _ => return Err("Unsupported language".into()),
+            _ => return Err(AppError::Other("Unsupported language".to_string())),
         };
 
-        parser.set_language(language)?;
+        parser
+            .set_language(language)
+            .map_err(|e| AppError::Other(e.to_string()))?;
         Ok(parser)
     }
 
@@ -133,7 +136,7 @@ impl CodeProgrammer {
         &mut self,
         prompt: &str,
         language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> AppResult<String> {
         let language_str: &str = language.into();
         self.ai_client
             .generate_code(prompt, Some(language_str))
@@ -141,11 +144,7 @@ impl CodeProgrammer {
     }
 
     /// Complete code snippet
-    pub async fn complete_code(
-        &mut self,
-        code: &str,
-        language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn complete_code(&mut self, code: &str, language: CodeLanguage) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Complete the following {language_str} code:\n\n{code}\n\nContinue from where it left off. Provide only the completed code, no explanations."
@@ -156,11 +155,7 @@ impl CodeProgrammer {
     }
 
     /// Explain code
-    pub async fn explain_code(
-        &mut self,
-        code: &str,
-        language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn explain_code(&mut self, code: &str, language: CodeLanguage) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Explain the following {language_str} code:\n\n{code}\n\nProvide a clear, concise explanation of what the code does, how it works, and any important concepts or patterns used."
@@ -171,11 +166,7 @@ impl CodeProgrammer {
     }
 
     /// Optimize code
-    pub async fn optimize_code(
-        &mut self,
-        code: &str,
-        language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn optimize_code(&mut self, code: &str, language: CodeLanguage) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Optimize the following {language_str} code for performance and readability:\n\n{code}\n\nProvide the optimized code along with explanations of the optimizations made."
@@ -186,11 +177,7 @@ impl CodeProgrammer {
     }
 
     /// Review code for issues
-    pub async fn review_code(
-        &mut self,
-        code: &str,
-        language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn review_code(&mut self, code: &str, language: CodeLanguage) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Review the following {language_str} code for issues:\n\n{code}\n\nCheck for bugs, security vulnerabilities, performance issues, code smells, and violations of best practices. Provide a detailed report of any issues found and suggestions for improvement."
@@ -205,7 +192,7 @@ impl CodeProgrammer {
         &mut self,
         code: &str,
         language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Generate comprehensive tests for the following {language_str} code:\n\n{code}\n\nInclude unit tests, integration tests, and edge cases. Provide the test code along with explanations of what each test covers."
@@ -221,7 +208,7 @@ impl CodeProgrammer {
         code: &str,
         language: CodeLanguage,
         refactor_type: &str,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> AppResult<String> {
         let language_str: &str = language.into();
         let prompt = format!(
             "Refactor the following {language_str} code to {refactor_type}:\n\n{code}\n\nProvide the refactored code along with explanations of the changes made and how they address the refactoring goal."
@@ -232,9 +219,9 @@ impl CodeProgrammer {
     }
 
     /// Analyze codebase structure
-    pub fn analyze_codebase(&self, path: &Path) -> Result<String, Box<dyn Error>> {
+    pub fn analyze_codebase(&self, path: &Path) -> AppResult<String> {
         if !path.is_dir() {
-            return Err("Path must be a directory".into());
+            return Err(AppError::Other("Path must be a directory".to_string()));
         }
 
         let mut code_files = Vec::new();
@@ -272,13 +259,11 @@ impl CodeProgrammer {
     }
 
     /// Parse code and return syntax tree information
-    pub fn parse_code(
-        &mut self,
-        code: &str,
-        language: CodeLanguage,
-    ) -> Result<String, Box<dyn Error>> {
+    pub fn parse_code(&mut self, code: &str, language: CodeLanguage) -> AppResult<String> {
         if let Some(parser) = self.parsers.get_mut(&language) {
-            let tree = parser.parse(code, None).ok_or("Failed to parse code")?;
+            let tree = parser
+                .parse(code, None)
+                .ok_or(AppError::Other("Failed to parse code".to_string()))?;
 
             let root_node = tree.root_node();
             let start_pos = root_node.start_position();
@@ -305,7 +290,9 @@ impl CodeProgrammer {
 
             Ok(report)
         } else {
-            Err("No parser available for this language".into())
+            Err(AppError::Other(
+                "No parser available for this language".to_string(),
+            ))
         }
     }
 
@@ -336,12 +323,12 @@ impl CodeProgrammer {
     }
 
     /// Read code from file
-    pub fn read_code_from_file(path: &Path) -> Result<String, Box<dyn Error>> {
+    pub fn read_code_from_file(path: &Path) -> AppResult<String> {
         fs::read_to_string(path).map_err(|e| e.into())
     }
 
     /// Write code to file
-    pub fn write_code_to_file(path: &Path, code: &str) -> Result<(), Box<dyn Error>> {
+    pub fn write_code_to_file(path: &Path, code: &str) -> AppResult<()> {
         fs::write(path, code).map_err(|e| e.into())
     }
 }
