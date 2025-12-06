@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -10,9 +10,9 @@ use walkdir::WalkDir;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DocsFormat {
     Markdown,
-    HTML,
-    JSON,
-    YAML,
+    Html,
+    Json,
+    Yaml,
     Custom(String),
 }
 
@@ -20,9 +20,9 @@ impl From<DocsFormat> for String {
     fn from(format: DocsFormat) -> Self {
         match format {
             DocsFormat::Markdown => "markdown".to_string(),
-            DocsFormat::HTML => "html".to_string(),
-            DocsFormat::JSON => "json".to_string(),
-            DocsFormat::YAML => "yaml".to_string(),
+            DocsFormat::Html => "html".to_string(),
+            DocsFormat::Json => "json".to_string(),
+            DocsFormat::Yaml => "yaml".to_string(),
             DocsFormat::Custom(s) => s,
         }
     }
@@ -100,9 +100,9 @@ impl DocsGenerator {
         self.config.output_dir = output_dir.to_string();
         self.config.format = match format.to_lowercase().as_str() {
             "markdown" | "md" => DocsFormat::Markdown,
-            "html" => DocsFormat::HTML,
-            "json" => DocsFormat::JSON,
-            "yaml" | "yml" => DocsFormat::YAML,
+            "html" => DocsFormat::Html,
+            "json" => DocsFormat::Json,
+            "yaml" | "yml" => DocsFormat::Yaml,
             _ => return Err(format!("Unsupported format: {}", format).into()),
         };
         

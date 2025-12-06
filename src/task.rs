@@ -1,9 +1,10 @@
+use chrono::{Utc, TimeZone};
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs::{self, File};
-use std::io::{self, BufReader, BufWriter};
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -379,17 +380,17 @@ pub fn format_task(task: &Task) -> String {
     formatted.push_str(&format!("Status: {}\n", status_str));
     formatted.push_str(&format!("Priority: {}\n", priority_str));
     formatted.push_str(&format!("Created: {}\n", 
-        chrono::NaiveDateTime::from_timestamp(task.created_at, 0)
+        chrono::Utc.timestamp(task.created_at, 0)
             .format("%Y-%m-%d %H:%M:%S")
     ));
     formatted.push_str(&format!("Updated: {}\n", 
-        chrono::NaiveDateTime::from_timestamp(task.updated_at, 0)
+        chrono::Utc.timestamp(task.updated_at, 0)
             .format("%Y-%m-%d %H:%M:%S")
     ));
     
     if let Some(completed_at) = task.completed_at {
         formatted.push_str(&format!("Completed: {}\n", 
-            chrono::NaiveDateTime::from_timestamp(completed_at, 0)
+            chrono::Utc.timestamp(completed_at, 0)
                 .format("%Y-%m-%d %H:%M:%S")
         ));
     }

@@ -22,7 +22,7 @@ pub enum CodeLanguage {
     CSS,
     JSON,
     YAML,
-    TOML,
+    Toml,
     Markdown,
     Other,
 }
@@ -47,7 +47,7 @@ impl From<&str> for CodeLanguage {
             "json" => CodeLanguage::JSON,
             "yaml" => CodeLanguage::YAML,
             "yml" => CodeLanguage::YAML,
-            "toml" => CodeLanguage::TOML,
+            "toml" => CodeLanguage::Toml,
             "md" => CodeLanguage::Markdown,
             _ => CodeLanguage::Other,
         }
@@ -71,7 +71,7 @@ impl From<CodeLanguage> for &'static str {
             CodeLanguage::CSS => "css",
             CodeLanguage::JSON => "json",
             CodeLanguage::YAML => "yaml",
-            CodeLanguage::TOML => "toml",
+            CodeLanguage::Toml => "toml",
             CodeLanguage::Markdown => "markdown",
             CodeLanguage::Other => "text",
         }
@@ -230,7 +230,7 @@ impl CodeProgrammer {
         }
         
         // Generate analysis report
-        let mut report = format!("Codebase Analysis Report\n======================\n\n");
+        let mut report = "Codebase Analysis Report\n======================\n\n".to_string();
         report.push_str(&format!("Directory: {}\n", path.display()));
         report.push_str(&format!("Total Code Files: {}\n\n", code_files.len()));
         
@@ -252,7 +252,7 @@ impl CodeProgrammer {
             let root_node = tree.root_node();
             let start_pos = root_node.start_position();
             let end_pos = root_node.end_position();
-            let mut report = format!("Syntax Tree Analysis\n==================\n\n");
+            let mut report = "Syntax Tree Analysis\n==================\n\n".to_string();
             report.push_str(&format!("Root Node: {} [{}:{} - {}:{}]\n", 
                 root_node.kind(),
                 start_pos.row,

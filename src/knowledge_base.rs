@@ -10,7 +10,7 @@ use tantivy::collector::{Count, TopDocs};
 use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
-use tantivy::{Index, IndexWriter, ReloadPolicy};
+use tantivy::{Index, IndexWriter};
 use walkdir::WalkDir;
 
 /// Static schema definition for the knowledge base
@@ -94,7 +94,7 @@ impl KnowledgeBase {
                     for entry in WalkDir::new(path) {
                         let entry = entry?;
                         if entry.file_type().is_file() {
-                            self.add_file(&entry.path())?;
+                            self.add_file(entry.path())?;
                         }
                     }
                 } else {

@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::Instant;
 /// Command result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandResult {
@@ -601,7 +600,7 @@ impl CommandExecutor {
         
         // Convert Vec<String> to Vec<&str>
         let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        self.registry.execute(&command_name, &args_ref, &self.context).await
+        self.registry.execute(command_name, &args_ref, &self.context).await
     }
     
     /// Get the current context

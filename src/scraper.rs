@@ -1,11 +1,11 @@
 use reqwest::Client;
 use scraper::{Html, Selector};
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use url::{Url, ParseError};
+use url::Url;
 
 /// Web scraper configuration
 #[derive(Debug, Clone)]
@@ -60,8 +60,10 @@ pub struct WebScraper {
 impl WebScraper {
     /// Create a new web scraper with default configuration and specified depth
     pub fn new(max_depth: u32) -> Result<Self, Box<dyn Error>> {
-        let mut config = ScraperConfig::default();
-        config.max_depth = max_depth;
+        let config = ScraperConfig {
+            max_depth,
+            ..Default::default()
+        };
         
         let client = Arc::new(Client::builder()
             .user_agent(&config.user_agent)

@@ -1,9 +1,7 @@
 use crate::ai::AIClient;
-use crate::task::{Task, TaskManager, TaskStatus, TaskPriority};
+use crate::task::{TaskManager, TaskStatus};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Solo mode step structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,7 +83,6 @@ impl SoloAgent {
         
         // Step 2: Execute steps sequentially
         let mut results = Vec::new();
-        let mut final_result = String::new();
         
         for (i, mut step) in steps.into_iter().enumerate() {
             println!(
@@ -115,7 +112,7 @@ impl SoloAgent {
         }
         
         // Step 3: Synthesize final result
-        final_result = self.synthesize_result(task, &results).await?;
+        let final_result = self.synthesize_result(task, &results).await?;
         println!("\n=== Final Result ===");
         println!("{}", final_result);
         
@@ -234,8 +231,8 @@ impl SoloAgent {
             println!("Checking for real-world actions...");
             
             // For now, just use AI to execute the step
-            let _result = self.execute_step(&step.description).await?;
-            println!("✓ Step completed successfully");
+            let result = self.execute_step(&step.description).await?;
+            println!("✓ Step completed successfully: {:.50}...", result);
         }
         
         // Update task status to done
@@ -267,7 +264,7 @@ impl SoloAgent {
         
         // Create a shared AI client wrapped in Arc<Mutex> (暂时未使用)
         // 使用Arc::clone而不是AIClient::clone
-        let _shared_ai = Arc::new(Mutex::new(self.ai_client.clone()));
+        // let shared_ai = Arc::new(Mutex::new(self.ai_client.clone())); // TODO: 主人~ 未来实现并行执行时需要使用这个共享AI客户端哦
         let mut step_results = Vec::new();
         
         // Execute steps sequentially (parallel execution needs redesign)

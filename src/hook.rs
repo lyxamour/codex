@@ -394,19 +394,12 @@ impl Hook for InlineHook {
 }
 
 /// Hook manager for managing hooks
+#[derive(Default)]
 pub struct HookManager {
     hooks: HashMap<HookEvent, Vec<Box<dyn Hook>>>,
     execution_count: u64,
 }
 
-impl Default for HookManager {
-    fn default() -> Self {
-        Self {
-            hooks: HashMap::new(),
-            execution_count: 0,
-        }
-    }
-}
 
 impl HookManager {
     /// Create a new hook manager

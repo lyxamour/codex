@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
 
 /// Subagent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SubagentConfig {
     /// Subagent name
     name: String,
@@ -59,8 +59,9 @@ impl From<SubagentType> for &'static str {
     }
 }
 
-/// Subagent result
+/// Result from a subagent execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SubagentResult {
     /// Result content
     content: String,
@@ -78,6 +79,7 @@ pub struct SubagentResult {
 
 /// Subagent trait for all subagents
 #[async_trait]
+#[allow(dead_code)]
 pub trait Subagent: Sync + Send {
     /// Get the subagent name
     fn name(&self) -> &str;

@@ -1,7 +1,7 @@
+use chrono::{Utc, TimeZone};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 
 /// Context item structure
@@ -69,6 +69,7 @@ pub enum CompressionStrategy {
 }
 
 /// Context manager for handling context auto-compression
+#[allow(dead_code)]
 pub struct ContextManager {
     context: VecDeque<ContextItem>,
     max_tokens: usize,
@@ -329,11 +330,9 @@ impl ContextManager {
             let ref_factor = (item.ref_count as f32 + 1.0).ln() / 10.0;
             
             // Calculate hybrid score
-            let hybrid_score = (
-                (item.importance as f32 / 100.0) * type_weight * 0.6 +
+            let hybrid_score = (item.importance as f32 / 100.0) * type_weight * 0.6 +
                 time_decay * 0.3 +
-                ref_factor * 0.1
-            );
+                ref_factor * 0.1;
             
             scored_items.push((hybrid_score, item));
         }
@@ -569,9 +568,9 @@ impl ContextManager {
             println!("    - {}: {}", item_type, count);
         }
         println!("  Time Range: {} to {}", 
-            chrono::NaiveDateTime::from_timestamp(summary.oldest_item, 0)
+            chrono::Utc.timestamp(summary.oldest_item, 0)
                 .format("%Y-%m-%d %H:%M:%S"),
-            chrono::NaiveDateTime::from_timestamp(summary.newest_item, 0)
+            chrono::Utc.timestamp(summary.newest_item, 0)
                 .format("%Y-%m-%d %H:%M:%S")
         );
     }
