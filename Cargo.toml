@@ -1,0 +1,97 @@
+[package]
+name = "codex"
+version = "0.1.0"
+authors = ["Your Name <your.email@example.com>"]
+edition = "2021"
+description = "A CLI-based AI programming tool with local knowledge base, remote scraping, and multi-AI platform support"
+license = "MIT"
+
+[dependencies]
+# Command line argument parsing
+clap = { version = "4.4", features = ["derive", "color", "help", "usage"] }
+
+# Modern CLI UI
+ratatui = { version = "0.24", features = ["crossterm"] }
+crossterm = { version = "0.27", features = ["event-stream"] }
+
+# Knowledge base
+ tantivy = { version = "0.19" }
+sled = { version = "0.34" }
+
+# AI platform support
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+
+# Web scraping
+scraper = { version = "0.17" }
+url = { version = "2.4" }
+
+# Code processing
+tree-sitter = { version = "0.20" }
+tree-sitter-rust = { version = "0.20" }
+tree-sitter-python = { version = "0.20" }
+tree-sitter-javascript = { version = "0.20" }
+tree-sitter-typescript = { version = "0.20" }
+
+# Utilities
+lazy_static = { version = "1.4" }
+once_cell = { version = "1.17" }
+log = { version = "0.4" }
+env_logger = { version = "0.10" }
+chrono = { version = "0.4" }
+tokio = { version = "1.32", features = ["full"] }
+regex = { version = "1.10" }
+tempfile = { version = "3.8" }
+walkdir = { version = "2.4" }
+shellexpand = { version = "3.1" }
+uuid = { version = "1.4", features = ["v4"] }
+
+# Subagent, hook, and command support
+serde_yaml = { version = "0.9" }
+toml = { version = "0.8" }
+shell-words = "1.1"
+async-trait = "0.1"
+
+
+[build-dependencies]
+vergen = "8.3"
+chrono = { version = "0.4" }
+
+[profile.release]
+# Optimize for size and performance
+opt-level = "z"  # Optimize for size
+lto = true       # Link-time optimization
+codegen-units = 1 # Single codegen unit for better optimization
+strip = true     # Strip debug symbols
+panic = "abort"   # Abort on panic for smaller binary
+
+[profile.dev]
+# Debug build settings
+opt-level = 0
+debug = true
+
+# Cross-compilation support
+[target.x86_64-unknown-linux-gnu]
+linker = "gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.x86_64-apple-darwin]
+linker = "clang"
+
+[target.aarch64-apple-darwin]
+linker = "clang"
+
+[target.x86_64-pc-windows-msvc]
+linker = "link.exe"
+
+# Feature flags for optional functionality
+[features]
+default = ["full"]
+full = ["web-scraping", "ai-platforms", "task-management", "solo-mode"]
+web-scraping = []
+ai-platforms = []
+task-management = []
+solo-mode = []
