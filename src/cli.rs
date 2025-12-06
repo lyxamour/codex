@@ -1,35 +1,39 @@
-use crate::{knowledge_base, ai, scraper, task, solo, docs, ui};
 use crate::knowledge_base::KnowledgeActions;
 use crate::task::TaskActions;
+use crate::{ai, docs, knowledge_base, scraper, solo, task, ui};
 use std::error::Error;
 
 /// Handle interactive mode command
 pub fn handle_interactive(tab: Option<String>) -> Result<(), Box<dyn Error>> {
     println!("Starting interactive mode...");
     println!("Tab: {:?}", tab);
-    
+
     // Initialize UI
     ui::run(tab)?;
-    
+
     Ok(())
 }
 
 /// Handle code generation command
-pub fn handle_code(prompt: &str, language: Option<String>, output: Option<String>) -> Result<(), Box<dyn Error>> {
+pub fn handle_code(
+    prompt: &str,
+    language: Option<String>,
+    output: Option<String>,
+) -> Result<(), Box<dyn Error>> {
     println!("Generating code for prompt: {}", prompt);
     println!("Language: {:?}", language);
     println!("Output: {:?}", output);
-    
+
     // Initialize tokio runtime to execute async code
     let rt = tokio::runtime::Runtime::new()?;
-    
+
     rt.block_on(async move {
         // Initialize AI client
         let mut ai_client = ai::AIClient::new()?;
-        
+
         // Generate code
         let generated_code = ai_client.generate_code(prompt, language.as_deref()).await?;
-        
+
         // Output result
         if let Some(output_path) = output {
             std::fs::write(&output_path, generated_code)?;
@@ -37,7 +41,7 @@ pub fn handle_code(prompt: &str, language: Option<String>, output: Option<String
         } else {
             println!("{}", generated_code);
         }
-        
+
         Ok(())
     })
 }
@@ -45,7 +49,7 @@ pub fn handle_code(prompt: &str, language: Option<String>, output: Option<String
 /// Handle knowledge base commands
 pub fn handle_knowledge(action: KnowledgeActions) -> Result<(), Box<dyn Error>> {
     let mut kb = knowledge_base::KnowledgeBase::new()?;
-    
+
     match action {
         KnowledgeActions::Add { paths, recursive } => {
             kb.add_files(paths, recursive)?;
@@ -74,21 +78,25 @@ pub fn handle_knowledge(action: KnowledgeActions) -> Result<(), Box<dyn Error>> 
             }
         }
     }
-    
+
     Ok(())
 }
 
 /// Handle web scraping command
-pub async fn handle_scrape(urls: &[String], depth: u32, add_to_kb: bool) -> Result<(), Box<dyn Error>> {
+pub async fn handle_scrape(
+    urls: &[String],
+    depth: u32,
+    add_to_kb: bool,
+) -> Result<(), Box<dyn Error>> {
     println!("Scraping URLs: {:?}", urls);
     println!("Depth: {}", depth);
     println!("Add to KB: {}", add_to_kb);
-    
+
     let mut scraper = scraper::WebScraper::new(depth)?;
-    
+
     // Scrape URLs
     let scraped_content = scraper.scrape(urls).await?;
-    
+
     // Add to knowledge base if requested
     if add_to_kb {
         let mut kb = knowledge_base::KnowledgeBase::new()?;
@@ -103,16 +111,19 @@ pub async fn handle_scrape(urls: &[String], depth: u32, add_to_kb: bool) -> Resu
             println!("{}", content);
         }
     }
-    
+
     Ok(())
 }
 
 /// Handle task management commands
 pub fn handle_task(action: TaskActions) -> Result<(), Box<dyn Error>> {
     let mut task_manager = task::TaskManager::new()?;
-    
+
     match action {
-        TaskActions::Create { description, priority } => {
+        TaskActions::Create {
+            description,
+            priority,
+        } => {
             let task = task_manager.create(description, priority)?;
             println!("Created task: {}", task.id);
         }
@@ -123,7 +134,12 @@ pub fn handle_task(action: TaskActions) -> Result<(), Box<dyn Error>> {
                 println!("- {}: {} [{:?}]", task.id, task.description, task.status);
             }
         }
-        TaskActions::Update { id, description, status, priority } => {
+        TaskActions::Update {
+            id,
+            description,
+            status,
+            priority,
+        } => {
             let updated_task = task_manager.update(&id, description, status, priority)?;
             println!("Updated task: {}", updated_task.id);
         }
@@ -132,7 +148,7 @@ pub fn handle_task(action: TaskActions) -> Result<(), Box<dyn Error>> {
             println!("Deleted task: {}", id);
         }
     }
-    
+
     Ok(())
 }
 
@@ -140,13 +156,13 @@ pub fn handle_task(action: TaskActions) -> Result<(), Box<dyn Error>> {
 pub async fn handle_solo(task: &str, steps: u32) -> Result<(), Box<dyn Error>> {
     println!("Starting solo mode for task: {}", task);
     println!("Maximum steps: {}", steps);
-    
+
     let mut solo_agent = solo::SoloAgent::new()?;
     let result = solo_agent.execute(task, steps).await?;
-    
+
     println!("\nSolo mode completed:");
     println!("Result: {}", result);
-    
+
     Ok(())
 }
 
@@ -155,11 +171,11 @@ pub fn handle_docs(path: &str, format: &str, output: &str) -> Result<(), Box<dyn
     println!("Generating documentation for: {}", path);
     println!("Format: {}", format);
     println!("Output directory: {}", output);
-    
+
     let mut docs_generator = docs::DocsGenerator::new()?;
     docs_generator.generate(path, format, output)?;
-    
+
     println!("Documentation generated successfully");
-    
+
     Ok(())
 }

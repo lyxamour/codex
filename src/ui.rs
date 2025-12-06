@@ -1,5 +1,8 @@
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    execute, terminal,
+};
 use ratatui::{prelude::*, widgets::*};
-use crossterm::{event::{self, Event, KeyCode, KeyEvent, KeyModifiers}, execute, terminal};
 use std::error::Error;
 use std::io::stdout;
 use std::time::Duration;
@@ -47,31 +50,35 @@ pub fn run(tab: Option<String>) -> Result<(), Box<dyn Error>> {
     // Initialize terminal
     terminal::enable_raw_mode()?;
     let mut stdout = stdout();
-    execute!(stdout, terminal::EnterAlternateScreen, event::EnableMouseCapture)?;
+    execute!(
+        stdout,
+        terminal::EnterAlternateScreen,
+        event::EnableMouseCapture
+    )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    
+
     // Create app with default state
     let mut app = App::default();
-    
+
     // Set initial tab if specified
     if let Some(tab_name) = tab {
         if let Some(index) = app.tabs.iter().position(|t| t == &tab_name) {
             app.active_tab = index;
         }
     }
-    
+
     // Run main loop
     loop {
         // Draw UI
         terminal.draw(|f| render_app(f, &app))?;
-        
+
         // Handle events
         if !handle_events(&mut app)? {
             break;
         }
     }
-    
+
     // Restore terminal
     terminal::disable_raw_mode()?;
     execute!(
@@ -80,7 +87,7 @@ pub fn run(tab: Option<String>) -> Result<(), Box<dyn Error>> {
         event::DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-    
+
     Ok(())
 }
 
@@ -94,34 +101,37 @@ fn render_app(f: &mut Frame, app: &App) {
             Constraint::Length(3), // Input area
         ])
         .split(f.size());
-    
+
     // Render tabs
     render_tabs(f, layout[0], app);
-    
+
     // Render output area
     render_output(f, layout[1], app);
-    
+
     // Render input area
     render_input(f, layout[2], app);
 }
 
 /// Render tab bar
 fn render_tabs(f: &mut Frame, area: Rect, app: &App) {
-    let tabs = app.tabs.iter().enumerate().map(|(i, tab)| {
-        let style = if i == app.active_tab {
-            Style::default().bg(Color::Blue).fg(Color::White)
-        } else {
-            Style::default().bg(Color::DarkGray).fg(Color::White)
-        };
-        Line::from(vec![
-            Span::styled(format!(" {}", tab), style),
-        ])
-    }).collect::<Vec<_>>();
-    
+    let tabs = app
+        .tabs
+        .iter()
+        .enumerate()
+        .map(|(i, tab)| {
+            let style = if i == app.active_tab {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else {
+                Style::default().bg(Color::DarkGray).fg(Color::White)
+            };
+            Line::from(vec![Span::styled(format!(" {}", tab), style)])
+        })
+        .collect::<Vec<_>>();
+
     let tabs_widget = Paragraph::new(tabs)
         .style(Style::default().bg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
-    
+
     f.render_widget(tabs_widget, area);
 }
 
@@ -130,37 +140,40 @@ fn render_output(f: &mut Frame, area: Rect, app: &App) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(format!("Output - {}", app.tabs[app.active_tab]));
-    
-    let items = app.output.iter().map(|line| ListItem::new(line.as_str())).collect::<Vec<_>>();
-    
+
+    let items = app
+        .output
+        .iter()
+        .map(|line| ListItem::new(line.as_str()))
+        .collect::<Vec<_>>();
+
     let list = List::new(items)
         .block(block)
         .style(Style::default().fg(Color::Gray))
         .highlight_style(Style::default().add_modifier(Modifier::BOLD))
         .highlight_symbol(">>");
-    
-    f.render_stateful_widget(list, area, &mut ListState::default().with_offset(app.output_offset));
+
+    f.render_stateful_widget(
+        list,
+        area,
+        &mut ListState::default().with_offset(app.output_offset),
+    );
 }
 
 /// Render input area
 fn render_input(f: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Input");
-    
+    let block = Block::default().borders(Borders::ALL).title("Input");
+
     let input = Paragraph::new(app.input.as_str())
         .block(block)
         .style(Style::default().fg(Color::Yellow))
         .scroll((0, app.input.len() as u16))
         .alignment(Alignment::Left);
-    
+
     f.render_widget(input, area);
-    
+
     // Set cursor position
-    f.set_cursor(
-        area.x + app.input.len() as u16 + 1,
-        area.y + 1,
-    );
+    f.set_cursor(area.x + app.input.len() as u16 + 1, area.y + 1);
 }
 
 /// Handle terminal events
@@ -181,7 +194,7 @@ fn handle_events(app: &mut App) -> Result<bool, Box<dyn Error>> {
             }
         }
     }
-    
+
     Ok(true)
 }
 
@@ -189,7 +202,9 @@ fn handle_events(app: &mut App) -> Result<bool, Box<dyn Error>> {
 fn handle_key_event(app: &mut App, key_event: KeyEvent) -> Result<(), Box<dyn Error>> {
     match key_event.code {
         // Exit on Ctrl+C or Esc
-        KeyCode::Esc | KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Esc | KeyCode::Char('c')
+            if key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             return Ok(());
         }
         // Tab navigation
@@ -206,10 +221,10 @@ fn handle_key_event(app: &mut App, key_event: KeyEvent) -> Result<(), Box<dyn Er
                 // Add to history
                 app.history.push(input.clone());
                 app.history_index = None;
-                
+
                 // Process input
                 process_input(app, &input)?;
-                
+
                 // Clear input
                 app.input.clear();
             }
@@ -231,7 +246,7 @@ fn handle_key_event(app: &mut App, key_event: KeyEvent) -> Result<(), Box<dyn Er
                     *index -= 1;
                 }
             }
-            
+
             if let Some(index) = app.history_index {
                 app.input = app.history[index].clone();
             }
@@ -263,7 +278,7 @@ fn handle_key_event(app: &mut App, key_event: KeyEvent) -> Result<(), Box<dyn Er
             // Ignore other keys
         }
     }
-    
+
     Ok(())
 }
 
@@ -271,12 +286,13 @@ fn handle_key_event(app: &mut App, key_event: KeyEvent) -> Result<(), Box<dyn Er
 fn process_input(app: &mut App, input: &str) -> Result<(), Box<dyn Error>> {
     // Add input to output
     app.output.push(format!("$ {}", input));
-    
+
     // Simple command processing for demo
     match input.trim() {
         "help" => {
             app.output.push("Available commands:".to_string());
-            app.output.push("  help - Show this help message".to_string());
+            app.output
+                .push("  help - Show this help message".to_string());
             app.output.push("  clear - Clear output".to_string());
             app.output.push("  exit - Exit the application".to_string());
             app.output.push("  tabs - List available tabs".to_string());
@@ -298,9 +314,9 @@ fn process_input(app: &mut App, input: &str) -> Result<(), Box<dyn Error>> {
             app.output.push(format!("Echo: {}", input));
         }
     }
-    
+
     // Auto-scroll to bottom
     app.output_offset = app.output.len().saturating_sub(1);
-    
+
     Ok(())
 }

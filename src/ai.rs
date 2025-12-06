@@ -46,17 +46,17 @@ impl AIResponse {
     pub fn content(&self) -> &str {
         &self.content
     }
-    
+
     /// Get the model used for the response
     pub fn model(&self) -> &str {
         &self.model
     }
-    
+
     /// Get the platform used for the response
     pub fn platform(&self) -> AIPlatform {
         self.platform
     }
-    
+
     /// Get the tokens used for the response
     pub fn tokens_used(&self) -> Option<usize> {
         self.tokens_used
@@ -84,7 +84,7 @@ impl AIClient {
         let client = Arc::new(Client::new());
         let mut models = HashMap::new();
         let mut templates = HashMap::new();
-        
+
         // Load environment variables for default models
         if let Ok(api_key) = env::var("OPENAI_API_KEY") {
             models.insert(
@@ -97,7 +97,7 @@ impl AIClient {
                 },
             );
         }
-        
+
         if let Ok(api_key) = env::var("ANTHROPIC_API_KEY") {
             models.insert(
                 "anthropic-claude3".to_string(),
@@ -109,7 +109,7 @@ impl AIClient {
                 },
             );
         }
-        
+
         if let Ok(api_key) = env::var("GOOGLE_API_KEY") {
             models.insert(
                 "google-gemini".to_string(),
@@ -121,7 +121,7 @@ impl AIClient {
                 },
             );
         }
-        
+
         if let Ok(api_key) = env::var("MISTRAL_API_KEY") {
             models.insert(
                 "mistral-large".to_string(),
@@ -133,18 +133,24 @@ impl AIClient {
                 },
             );
         }
-        
+
         // Default model
-        let default_model = models.keys().next().unwrap_or(&"ollama-llama3".to_string()).clone();
-        
+        let default_model = models
+            .keys()
+            .next()
+            .unwrap_or(&"ollama-llama3".to_string())
+            .clone();
+
         // Add default Ollama model (no API key needed)
-        models.entry("ollama-llama3".to_string()).or_insert(AIModel {
-            platform: AIPlatform::Ollama,
-            model_name: "llama3".to_string(),
-            api_key: "".to_string(),
-            base_url: Some("http://localhost:11434".to_string()),
-        });
-        
+        models
+            .entry("ollama-llama3".to_string())
+            .or_insert(AIModel {
+                platform: AIPlatform::Ollama,
+                model_name: "llama3".to_string(),
+                api_key: "".to_string(),
+                base_url: Some("http://localhost:11434".to_string()),
+            });
+
         // Load default templates
         templates.insert(
             "code-generation".to_string(),
@@ -154,7 +160,7 @@ impl AIClient {
                 platform: None,
             },
         );
-        
+
         templates.insert(
             "code-explanation".to_string(),
             PromptTemplate {
@@ -163,7 +169,7 @@ impl AIClient {
                 platform: None,
             },
         );
-        
+
         templates.insert(
             "code-optimization".to_string(),
             PromptTemplate {
@@ -172,7 +178,7 @@ impl AIClient {
                 platform: None,
             },
         );
-        
+
         Ok(Self {
             client,
             models,
@@ -180,50 +186,55 @@ impl AIClient {
             default_model,
         })
     }
-    
+
     /// Generate code using AI
-    pub async fn generate_code(&mut self, prompt: &str, language: Option<&str>) -> Result<String, Box<dyn Error>> {
+    pub async fn generate_code(
+        &mut self,
+        prompt: &str,
+        language: Option<&str>,
+    ) -> Result<String, Box<dyn Error>> {
         let language = language.unwrap_or("rust");
-        
+
         // Format prompt using template
         let template = self.templates.get("code-generation").unwrap();
-        let formatted_prompt = template.template
+        let formatted_prompt = template
+            .template
             .replace("{language}", language)
             .replace("{prompt}", prompt);
-        
+
         // Generate response using default model
         let response = self.generate_response(&formatted_prompt, None).await?;
-        
+
         Ok(response.content)
     }
-    
+
     /// Generate response from AI
-    pub async fn generate_response(&self, prompt: &str, model_name: Option<&str>) -> Result<AIResponse, Box<dyn Error>> {
+    pub async fn generate_response(
+        &self,
+        prompt: &str,
+        model_name: Option<&str>,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         let model_name = model_name.unwrap_or(&self.default_model);
-        let model = self.models.get(model_name)
+        let model = self
+            .models
+            .get(model_name)
             .ok_or(format!("Model '{}' not found", model_name))?;
-        
+
         match model.platform {
-            AIPlatform::OpenAI => {
-                self.generate_openai_response(model, prompt).await
-            }
-            AIPlatform::Anthropic => {
-                self.generate_anthropic_response(model, prompt).await
-            }
-            AIPlatform::GoogleGemini => {
-                self.generate_google_gemini_response(model, prompt).await
-            }
-            AIPlatform::Mistral => {
-                self.generate_mistral_response(model, prompt).await
-            }
-            AIPlatform::Ollama => {
-                self.generate_ollama_response(model, prompt).await
-            }
+            AIPlatform::OpenAI => self.generate_openai_response(model, prompt).await,
+            AIPlatform::Anthropic => self.generate_anthropic_response(model, prompt).await,
+            AIPlatform::GoogleGemini => self.generate_google_gemini_response(model, prompt).await,
+            AIPlatform::Mistral => self.generate_mistral_response(model, prompt).await,
+            AIPlatform::Ollama => self.generate_ollama_response(model, prompt).await,
         }
     }
-    
+
     /// Generate response from OpenAI
-    async fn generate_openai_response(&self, model: &AIModel, prompt: &str) -> Result<AIResponse, Box<dyn Error>> {
+    async fn generate_openai_response(
+        &self,
+        model: &AIModel,
+        prompt: &str,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         // OpenAI API request
         #[derive(Serialize)]
         struct OpenAIRequest {
@@ -231,29 +242,29 @@ impl AIClient {
             messages: Vec<OpenAIMessage>,
             temperature: f32,
         }
-        
+
         #[derive(Serialize, Deserialize)]
         struct OpenAIMessage {
             role: String,
             content: String,
         }
-        
+
         #[derive(Deserialize)]
         struct OpenAIResponse {
             choices: Vec<OpenAIChoice>,
             usage: Option<OpenAIUsage>,
         }
-        
+
         #[derive(Deserialize)]
         struct OpenAIChoice {
             message: OpenAIMessage,
         }
-        
+
         #[derive(Deserialize)]
         struct OpenAIUsage {
             total_tokens: usize,
         }
-        
+
         let request = OpenAIRequest {
             model: model.model_name.clone(),
             messages: vec![OpenAIMessage {
@@ -262,20 +273,24 @@ impl AIClient {
             }],
             temperature: 0.7,
         };
-        
-        let base_url = model.base_url.as_deref().unwrap_or("https://api.openai.com");
-        let response = self.client.post(format!("{}/v1/chat/completions", base_url))
+
+        let base_url = model
+            .base_url
+            .as_deref()
+            .unwrap_or("https://api.openai.com");
+        let response = self
+            .client
+            .post(format!("{}/v1/chat/completions", base_url))
             .header("Authorization", format!("Bearer {}", model.api_key))
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
-        .await?
-        .json::<OpenAIResponse>()
-        .await?;
-    
-        let choice = response.choices.first()
-            .ok_or("No choices in response")?;
-        
+            .await?
+            .json::<OpenAIResponse>()
+            .await?;
+
+        let choice = response.choices.first().ok_or("No choices in response")?;
+
         Ok(AIResponse {
             content: choice.message.content.clone(),
             model: model.model_name.clone(),
@@ -283,9 +298,13 @@ impl AIClient {
             tokens_used: response.usage.map(|u| u.total_tokens),
         })
     }
-    
+
     /// Generate response from Anthropic
-    async fn generate_anthropic_response(&self, model: &AIModel, prompt: &str) -> Result<AIResponse, Box<dyn Error>> {
+    async fn generate_anthropic_response(
+        &self,
+        model: &AIModel,
+        prompt: &str,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         // Anthropic API request
         #[derive(Serialize)]
         struct AnthropicRequest {
@@ -294,30 +313,30 @@ impl AIClient {
             max_tokens: usize,
             temperature: f32,
         }
-        
+
         #[derive(Serialize)]
         struct AnthropicMessage {
             role: String,
             content: String,
         }
-        
+
         #[derive(Deserialize)]
         struct AnthropicResponse {
             content: Vec<AnthropicContent>,
             usage: AnthropicUsage,
         }
-        
+
         #[derive(Deserialize)]
         struct AnthropicContent {
             text: String,
         }
-        
+
         #[derive(Deserialize)]
         struct AnthropicUsage {
             input_tokens: usize,
             output_tokens: usize,
         }
-        
+
         let request = AnthropicRequest {
             model: model.model_name.clone(),
             messages: vec![AnthropicMessage {
@@ -327,21 +346,25 @@ impl AIClient {
             max_tokens: 2048,
             temperature: 0.7,
         };
-        
-        let base_url = model.base_url.as_deref().unwrap_or("https://api.anthropic.com");
-        let response = self.client.post(format!("{}/v1/messages", base_url))
+
+        let base_url = model
+            .base_url
+            .as_deref()
+            .unwrap_or("https://api.anthropic.com");
+        let response = self
+            .client
+            .post(format!("{}/v1/messages", base_url))
             .header("x-api-key", &model.api_key)
             .header("Content-Type", "application/json")
             .header("anthropic-version", "2023-06-01")
             .json(&request)
             .send()
-        .await?
-        .json::<AnthropicResponse>()
-        .await?;
-    
-        let content = response.content.first()
-            .ok_or("No content in response")?;
-        
+            .await?
+            .json::<AnthropicResponse>()
+            .await?;
+
+        let content = response.content.first().ok_or("No content in response")?;
+
         Ok(AIResponse {
             content: content.text.clone(),
             model: model.model_name.clone(),
@@ -349,41 +372,45 @@ impl AIClient {
             tokens_used: Some(response.usage.input_tokens + response.usage.output_tokens),
         })
     }
-    
+
     /// Generate response from Google Gemini
-    async fn generate_google_gemini_response(&self, model: &AIModel, prompt: &str) -> Result<AIResponse, Box<dyn Error>> {
+    async fn generate_google_gemini_response(
+        &self,
+        model: &AIModel,
+        prompt: &str,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         // Google Gemini API request
         #[derive(Serialize)]
         struct GoogleGeminiRequest {
             contents: Vec<GoogleGeminiContent>,
         }
-        
+
         #[derive(Serialize, Deserialize)]
         struct GoogleGeminiContent {
             parts: Vec<GoogleGeminiPart>,
         }
-        
+
         #[derive(Serialize, Deserialize)]
         struct GoogleGeminiPart {
             text: String,
         }
-        
+
         #[derive(Deserialize)]
         struct GoogleGeminiResponse {
             candidates: Vec<GoogleGeminiCandidate>,
             usage_metadata: GoogleGeminiUsage,
         }
-        
+
         #[derive(Deserialize)]
         struct GoogleGeminiCandidate {
             content: GoogleGeminiContent,
         }
-        
+
         #[derive(Deserialize)]
         struct GoogleGeminiUsage {
             total_token_count: usize,
         }
-        
+
         let request = GoogleGeminiRequest {
             contents: vec![GoogleGeminiContent {
                 parts: vec![GoogleGeminiPart {
@@ -391,25 +418,34 @@ impl AIClient {
                 }],
             }],
         };
-        
-        let base_url = model.base_url.as_deref().unwrap_or("https://generativelanguage.googleapis.com");
-        let response = self.client.post(format!("{}/v1/models/{}/:generateContent?key={}", 
-            base_url, 
-            model.model_name, 
-            model.api_key
-        ))
-        .header("Content-Type", "application/json")
-        .json(&request)
-        .send()
-        .await?
-        .json::<GoogleGeminiResponse>()
-        .await?;
-    
-        let candidate = response.candidates.first()
+
+        let base_url = model
+            .base_url
+            .as_deref()
+            .unwrap_or("https://generativelanguage.googleapis.com");
+        let response = self
+            .client
+            .post(format!(
+                "{}/v1/models/{}/:generateContent?key={}",
+                base_url, model.model_name, model.api_key
+            ))
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await?
+            .json::<GoogleGeminiResponse>()
+            .await?;
+
+        let candidate = response
+            .candidates
+            .first()
             .ok_or("No candidates in response")?;
-        let part = candidate.content.parts.first()
+        let part = candidate
+            .content
+            .parts
+            .first()
             .ok_or("No parts in content")?;
-        
+
         Ok(AIResponse {
             content: part.text.clone(),
             model: model.model_name.clone(),
@@ -417,9 +453,13 @@ impl AIClient {
             tokens_used: Some(response.usage_metadata.total_token_count),
         })
     }
-    
+
     /// Generate response from Mistral
-    async fn generate_mistral_response(&self, model: &AIModel, prompt: &str) -> Result<AIResponse, Box<dyn Error>> {
+    async fn generate_mistral_response(
+        &self,
+        model: &AIModel,
+        prompt: &str,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         // Mistral API request
         #[derive(Serialize)]
         struct MistralRequest {
@@ -427,29 +467,29 @@ impl AIClient {
             messages: Vec<MistralMessage>,
             temperature: f32,
         }
-        
+
         #[derive(Serialize, Deserialize)]
         struct MistralMessage {
             role: String,
             content: String,
         }
-        
+
         #[derive(Deserialize)]
         struct MistralResponse {
             choices: Vec<MistralChoice>,
             usage: MistralUsage,
         }
-        
+
         #[derive(Deserialize)]
         struct MistralChoice {
             message: MistralMessage,
         }
-        
+
         #[derive(Deserialize)]
         struct MistralUsage {
             total_tokens: usize,
         }
-        
+
         let request = MistralRequest {
             model: model.model_name.clone(),
             messages: vec![MistralMessage {
@@ -458,20 +498,24 @@ impl AIClient {
             }],
             temperature: 0.7,
         };
-        
-        let base_url = model.base_url.as_deref().unwrap_or("https://api.mistral.ai");
-        let response = self.client.post(format!("{}/v1/chat/completions", base_url))
+
+        let base_url = model
+            .base_url
+            .as_deref()
+            .unwrap_or("https://api.mistral.ai");
+        let response = self
+            .client
+            .post(format!("{}/v1/chat/completions", base_url))
             .header("Authorization", format!("Bearer {}", model.api_key))
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
-        .await?
-        .json::<MistralResponse>()
-        .await?;
-    
-        let choice = response.choices.first()
-            .ok_or("No choices in response")?;
-        
+            .await?
+            .json::<MistralResponse>()
+            .await?;
+
+        let choice = response.choices.first().ok_or("No choices in response")?;
+
         Ok(AIResponse {
             content: choice.message.content.clone(),
             model: model.model_name.clone(),
@@ -479,9 +523,13 @@ impl AIClient {
             tokens_used: Some(response.usage.total_tokens),
         })
     }
-    
+
     /// Generate response from Ollama
-    async fn generate_ollama_response(&self, model: &AIModel, prompt: &str) -> Result<AIResponse, Box<dyn Error>> {
+    async fn generate_ollama_response(
+        &self,
+        model: &AIModel,
+        prompt: &str,
+    ) -> Result<AIResponse, Box<dyn Error>> {
         // Ollama API request
         #[derive(Serialize)]
         struct OllamaRequest {
@@ -489,29 +537,34 @@ impl AIClient {
             prompt: String,
             stream: bool,
         }
-        
+
         #[derive(Deserialize)]
         struct OllamaResponse {
             response: String,
             model: String,
             done: bool,
         }
-        
+
         let request = OllamaRequest {
             model: model.model_name.clone(),
             prompt: prompt.to_string(),
             stream: false,
         };
-        
-        let base_url = model.base_url.as_deref().unwrap_or("http://localhost:11434");
-        let response = self.client.post(format!("{}/api/generate", base_url))
+
+        let base_url = model
+            .base_url
+            .as_deref()
+            .unwrap_or("http://localhost:11434");
+        let response = self
+            .client
+            .post(format!("{}/api/generate", base_url))
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
-        .await?
-        .json::<OllamaResponse>()
-        .await?;
-    
+            .await?
+            .json::<OllamaResponse>()
+            .await?;
+
         Ok(AIResponse {
             content: response.response,
             model: response.model,
@@ -519,17 +572,17 @@ impl AIClient {
             tokens_used: None,
         })
     }
-    
+
     /// Add or update a model configuration
     pub fn add_model(&mut self, name: &str, model: AIModel) {
         self.models.insert(name.to_string(), model);
     }
-    
+
     /// Add or update a prompt template
     pub fn add_template(&mut self, name: &str, template: PromptTemplate) {
         self.templates.insert(name.to_string(), template);
     }
-    
+
     /// Set the default model to use
     pub fn set_default_model(&mut self, model_name: &str) {
         if self.models.contains_key(model_name) {

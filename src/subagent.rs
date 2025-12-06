@@ -83,19 +83,23 @@ pub struct SubagentResult {
 pub trait Subagent: Sync + Send {
     /// Get the subagent name
     fn name(&self) -> &str;
-    
+
     /// Get the subagent description
     fn description(&self) -> &str;
-    
+
     /// Get the subagent type
     fn agent_type(&self) -> SubagentType;
-    
+
     /// Execute the subagent with a prompt and context
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>>;
-    
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>>;
+
     /// Get the subagent configuration
     fn config(&self) -> &SubagentConfig;
-    
+
     /// Update the subagent configuration
     fn update_config(&mut self, config: SubagentConfig);
 }
@@ -112,10 +116,10 @@ impl Default for SubagentRegistry {
             subagents: HashMap::new(),
             default_subagents: HashMap::new(),
         };
-        
+
         // Register default subagents
         registry.register_default_subagents();
-        
+
         registry
     }
 }
@@ -125,7 +129,7 @@ impl SubagentRegistry {
     pub fn new() -> Self {
         Default::default()
     }
-    
+
     /// Register default subagents
     fn register_default_subagents(&mut self) {
         // Register code generator subagent
@@ -140,11 +144,11 @@ impl SubagentRegistry {
             default_tools: vec!["file_edit".to_string(), "code_lookup".to_string()],
             config: HashMap::new(),
         };
-        
+
         let code_gen_subagent = CodeGeneratorSubagent::new(code_gen_config);
         self.register(code_gen_subagent);
         self.set_default_subagent(SubagentType::CodeGenerator, "code-generator".to_string());
-        
+
         // Register code reviewer subagent
         let code_reviewer_config = SubagentConfig {
             name: "code-reviewer".to_string(),
@@ -157,11 +161,11 @@ impl SubagentRegistry {
             default_tools: vec!["code_analysis".to_string(), "security_scan".to_string()],
             config: HashMap::new(),
         };
-        
+
         let code_reviewer_subagent = CodeReviewerSubagent::new(code_reviewer_config);
         self.register(code_reviewer_subagent);
         self.set_default_subagent(SubagentType::CodeReviewer, "code-reviewer".to_string());
-        
+
         // Register tester subagent
         let tester_config = SubagentConfig {
             name: "tester".to_string(),
@@ -174,28 +178,28 @@ impl SubagentRegistry {
             default_tools: vec!["test_runner".to_string(), "coverage_analyzer".to_string()],
             config: HashMap::new(),
         };
-        
+
         let tester_subagent = TesterSubagent::new(tester_config);
         self.register(tester_subagent);
         self.set_default_subagent(SubagentType::Tester, "tester".to_string());
     }
-    
+
     /// Register a new subagent
     pub fn register(&mut self, subagent: impl Subagent + 'static) {
         let name = subagent.name().to_string();
         self.subagents.insert(name, Box::new(subagent));
     }
-    
+
     /// Get a subagent by name
     pub fn get(&self, name: &str) -> Option<&Box<dyn Subagent>> {
         self.subagents.get(name)
     }
-    
+
     /// Get a mutable subagent by name
     pub fn get_mut(&mut self, name: &str) -> Option<&mut Box<dyn Subagent>> {
         self.subagents.get_mut(name)
     }
-    
+
     /// Get the default subagent for a specific type
     pub fn get_default(&self, agent_type: SubagentType) -> Option<&Box<dyn Subagent>> {
         if let Some(name) = self.default_subagents.get(&agent_type) {
@@ -204,15 +208,16 @@ impl SubagentRegistry {
             None
         }
     }
-    
+
     /// Set the default subagent for a specific type
     pub fn set_default_subagent(&mut self, agent_type: SubagentType, name: String) {
         self.default_subagents.insert(agent_type, name);
     }
-    
+
     /// List all registered subagents
     pub fn list(&self) -> Vec<SubagentInfo> {
-        self.subagents.values()
+        self.subagents
+            .values()
             .map(|subagent| SubagentInfo {
                 name: subagent.name().to_string(),
                 description: subagent.description().to_string(),
@@ -221,30 +226,33 @@ impl SubagentRegistry {
             })
             .collect()
     }
-    
+
     /// Execute a subagent by name
     pub async fn execute(
         &self,
         name: &str,
         prompt: &str,
-        context: Option<&str>
+        context: Option<&str>,
     ) -> Result<SubagentResult, Box<dyn Error>> {
-        let subagent = self.get(name)
+        let subagent = self
+            .get(name)
             .ok_or(format!("Subagent '{}' not found", name))?;
-        
+
         subagent.execute(prompt, context).await
     }
-    
+
     /// Execute the default subagent for a specific type
     pub async fn execute_default(
         &self,
         agent_type: SubagentType,
         prompt: &str,
-        context: Option<&str>
+        context: Option<&str>,
     ) -> Result<SubagentResult, Box<dyn Error>> {
-        let subagent = self.get_default(agent_type)
-            .ok_or(format!("No default subagent found for type {:?}", agent_type))?;
-        
+        let subagent = self.get_default(agent_type).ok_or(format!(
+            "No default subagent found for type {:?}",
+            agent_type
+        ))?;
+
         subagent.execute(prompt, context).await
     }
 }
@@ -279,37 +287,40 @@ impl Subagent for CodeGeneratorSubagent {
     fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     fn description(&self) -> &str {
         &self.config.description
     }
-    
+
     fn agent_type(&self) -> SubagentType {
         self.config.agent_type
     }
-    
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>> {
+
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>> {
         let start_time = std::time::Instant::now();
-        
+
         // Format prompt with system prompt
         let full_prompt = if let Some(context) = context {
-            format!("{}\n\nContext:\n{}\n\nUser Request:\n{}", 
-                self.config.system_prompt,
-                context,
-                prompt
+            format!(
+                "{}\n\nContext:\n{}\n\nUser Request:\n{}",
+                self.config.system_prompt, context, prompt
             )
         } else {
-            format!("{}\n\nUser Request:\n{}", 
-                self.config.system_prompt,
-                prompt
-            )
+            format!("{}\n\nUser Request:\n{}", self.config.system_prompt, prompt)
         };
-        
+
         // Generate response using AI client
-        let response = self.ai_client.generate_response(&full_prompt, Some(&self.config.model)).await?;
-        
+        let response = self
+            .ai_client
+            .generate_response(&full_prompt, Some(&self.config.model))
+            .await?;
+
         let execution_time = start_time.elapsed().as_secs_f64();
-        
+
         Ok(SubagentResult {
             content: response.content().to_string(),
             subagent: self.name().to_string(),
@@ -319,11 +330,11 @@ impl Subagent for CodeGeneratorSubagent {
             metadata: HashMap::new(),
         })
     }
-    
+
     fn config(&self) -> &SubagentConfig {
         &self.config
     }
-    
+
     fn update_config(&mut self, config: SubagentConfig) {
         self.config = config;
     }
@@ -350,37 +361,43 @@ impl Subagent for CodeReviewerSubagent {
     fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     fn description(&self) -> &str {
         &self.config.description
     }
-    
+
     fn agent_type(&self) -> SubagentType {
         self.config.agent_type
     }
-    
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>> {
+
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>> {
         let start_time = std::time::Instant::now();
-        
+
         // Format prompt with system prompt
         let full_prompt = if let Some(context) = context {
-            format!("{}\n\nContext:\n{}\n\nCode to review:\n{}", 
-                self.config.system_prompt,
-                context,
-                prompt
+            format!(
+                "{}\n\nContext:\n{}\n\nCode to review:\n{}",
+                self.config.system_prompt, context, prompt
             )
         } else {
-            format!("{}\n\nCode to review:\n{}", 
-                self.config.system_prompt,
-                prompt
+            format!(
+                "{}\n\nCode to review:\n{}",
+                self.config.system_prompt, prompt
             )
         };
-        
+
         // Generate response using AI client
-        let response = self.ai_client.generate_response(&full_prompt, Some(&self.config.model)).await?;
-        
+        let response = self
+            .ai_client
+            .generate_response(&full_prompt, Some(&self.config.model))
+            .await?;
+
         let execution_time = start_time.elapsed().as_secs_f64();
-        
+
         Ok(SubagentResult {
             content: response.content().to_string(),
             subagent: self.name().to_string(),
@@ -390,11 +407,11 @@ impl Subagent for CodeReviewerSubagent {
             metadata: HashMap::new(),
         })
     }
-    
+
     fn config(&self) -> &SubagentConfig {
         &self.config
     }
-    
+
     fn update_config(&mut self, config: SubagentConfig) {
         self.config = config;
     }
@@ -421,37 +438,40 @@ impl Subagent for TesterSubagent {
     fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     fn description(&self) -> &str {
         &self.config.description
     }
-    
+
     fn agent_type(&self) -> SubagentType {
         self.config.agent_type
     }
-    
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>> {
+
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>> {
         let start_time = std::time::Instant::now();
-        
+
         // Format prompt with system prompt
         let full_prompt = if let Some(context) = context {
-            format!("{}\n\nContext:\n{}\n\nCode to test:\n{}", 
-                self.config.system_prompt,
-                context,
-                prompt
+            format!(
+                "{}\n\nContext:\n{}\n\nCode to test:\n{}",
+                self.config.system_prompt, context, prompt
             )
         } else {
-            format!("{}\n\nCode to test:\n{}", 
-                self.config.system_prompt,
-                prompt
-            )
+            format!("{}\n\nCode to test:\n{}", self.config.system_prompt, prompt)
         };
-        
+
         // Generate response using AI client
-        let response = self.ai_client.generate_response(&full_prompt, Some(&self.config.model)).await?;
-        
+        let response = self
+            .ai_client
+            .generate_response(&full_prompt, Some(&self.config.model))
+            .await?;
+
         let execution_time = start_time.elapsed().as_secs_f64();
-        
+
         Ok(SubagentResult {
             content: response.content().to_string(),
             subagent: self.name().to_string(),
@@ -461,11 +481,11 @@ impl Subagent for TesterSubagent {
             metadata: HashMap::new(),
         })
     }
-    
+
     fn config(&self) -> &SubagentConfig {
         &self.config
     }
-    
+
     fn update_config(&mut self, config: SubagentConfig) {
         self.config = config;
     }
@@ -492,37 +512,43 @@ impl Subagent for DebuggerSubagent {
     fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     fn description(&self) -> &str {
         &self.config.description
     }
-    
+
     fn agent_type(&self) -> SubagentType {
         self.config.agent_type
     }
-    
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>> {
+
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>> {
         let start_time = std::time::Instant::now();
-        
+
         // Format prompt with system prompt
         let full_prompt = if let Some(context) = context {
-            format!("{}\n\nContext:\n{}\n\nDebug Request:\n{}", 
-                self.config.system_prompt,
-                context,
-                prompt
+            format!(
+                "{}\n\nContext:\n{}\n\nDebug Request:\n{}",
+                self.config.system_prompt, context, prompt
             )
         } else {
-            format!("{}\n\nDebug Request:\n{}", 
-                self.config.system_prompt,
-                prompt
+            format!(
+                "{}\n\nDebug Request:\n{}",
+                self.config.system_prompt, prompt
             )
         };
-        
+
         // Generate response using AI client
-        let response = self.ai_client.generate_response(&full_prompt, Some(&self.config.model)).await?;
-        
+        let response = self
+            .ai_client
+            .generate_response(&full_prompt, Some(&self.config.model))
+            .await?;
+
         let execution_time = start_time.elapsed().as_secs_f64();
-        
+
         Ok(SubagentResult {
             content: response.content().to_string(),
             subagent: self.name().to_string(),
@@ -532,11 +558,11 @@ impl Subagent for DebuggerSubagent {
             metadata: HashMap::new(),
         })
     }
-    
+
     fn config(&self) -> &SubagentConfig {
         &self.config
     }
-    
+
     fn update_config(&mut self, config: SubagentConfig) {
         self.config = config;
     }
@@ -563,37 +589,43 @@ impl Subagent for DocumenterSubagent {
     fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     fn description(&self) -> &str {
         &self.config.description
     }
-    
+
     fn agent_type(&self) -> SubagentType {
         self.config.agent_type
     }
-    
-    async fn execute(&self, prompt: &str, context: Option<&str>) -> Result<SubagentResult, Box<dyn Error>> {
+
+    async fn execute(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> Result<SubagentResult, Box<dyn Error>> {
         let start_time = std::time::Instant::now();
-        
+
         // Format prompt with system prompt
         let full_prompt = if let Some(context) = context {
-            format!("{}\n\nContext:\n{}\n\nContent to document:\n{}", 
-                self.config.system_prompt,
-                context,
-                prompt
+            format!(
+                "{}\n\nContext:\n{}\n\nContent to document:\n{}",
+                self.config.system_prompt, context, prompt
             )
         } else {
-            format!("{}\n\nContent to document:\n{}", 
-                self.config.system_prompt,
-                prompt
+            format!(
+                "{}\n\nContent to document:\n{}",
+                self.config.system_prompt, prompt
             )
         };
-        
+
         // Generate response using AI client
-        let response = self.ai_client.generate_response(&full_prompt, Some(&self.config.model)).await?;
-        
+        let response = self
+            .ai_client
+            .generate_response(&full_prompt, Some(&self.config.model))
+            .await?;
+
         let execution_time = start_time.elapsed().as_secs_f64();
-        
+
         Ok(SubagentResult {
             content: response.content().to_string(),
             subagent: self.name().to_string(),
@@ -603,11 +635,11 @@ impl Subagent for DocumenterSubagent {
             metadata: HashMap::new(),
         })
     }
-    
+
     fn config(&self) -> &SubagentConfig {
         &self.config
     }
-    
+
     fn update_config(&mut self, config: SubagentConfig) {
         self.config = config;
     }
