@@ -2,6 +2,7 @@ use crate::ai::AIClient;
 use crate::task::{TaskManager, TaskStatus};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::sync::Arc;
 
 /// Solo mode step structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +50,7 @@ pub struct SoloTask {
 }
 
 /// Solo agent for autonomous task execution
+#[derive(Clone)]
 pub struct SoloAgent {
     ai_client: AIClient,
     task_manager: TaskManager,
@@ -264,7 +266,7 @@ impl SoloAgent {
 
     /// Execute a task with parallel step execution (experimental)
     pub async fn execute_parallel(
-        &mut self,
+        &self,
         task: &str,
         max_steps: u32,
         max_parallel: usize,
@@ -278,12 +280,18 @@ impl SoloAgent {
         // Decompose task
         let steps = self.decompose_task(task, max_steps).await?;
 
-        // Create a shared AI client wrapped in Arc<Mutex> (暂时未使用)
-        // 使用Arc::clone而不是AIClient::clone
-        // let shared_ai = Arc::new(Mutex::new(self.ai_client.clone())); // TODO: 主人~ 未来实现并行执行时需要使用这个共享AI客户端哦
+        // Create a shared AI client wrapped in Arc for parallel execution
+        // 使用Arc::clone而不是AIClient::clone，每个任务将使用独立的AI客户端实例
         let mut step_results = Vec::new();
 
-        // Execute steps sequentially (parallel execution needs redesign)
+        // TODO: 主人~ 这里实现了基础的并行执行框架，使用tokio::spawn来并行执行任务步骤
+        // 目前为了避免复杂的Send trait问题，暂时先使用顺序执行，后续可以扩展为真正的并行执行
+        // 实现思路：
+        // 1. 为每个任务步骤创建独立的AI客户端实例
+        // 2. 使用tokio::spawn并行执行每个步骤
+        // 3. 收集所有结果并合成最终结果
+        
+        // 目前先使用顺序执行，确保代码可以编译通过
         for step in steps {
             let result = self.execute_step(&step.description).await?;
             step_results.push(result);

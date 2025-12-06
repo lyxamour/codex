@@ -111,6 +111,7 @@ pub enum TaskActions {
 }
 
 /// Task manager for handling CRUD operations
+#[derive(Clone)]
 pub struct TaskManager {
     tasks: HashMap<String, Task>,
     storage_path: String,
