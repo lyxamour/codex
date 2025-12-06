@@ -40,7 +40,7 @@ use task::TaskActions;
 #[command(propagate_version = true)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 
     /// Enable verbose logging
     #[arg(short, long)]
@@ -142,45 +142,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Handle commands
     match cli.command {
-        Commands::Interactive { tab } => {
+        Some(Commands::Interactive {
+            tab
+        }) => {
             // Start interactive UI mode
             cli::handle_interactive(tab.clone())?;
         }
-        Commands::Code {
+        Some(Commands::Code {
             prompt,
             language,
             output,
-        } => {
+        }) => {
             // Handle code generation
             cli::handle_code(&prompt, language.clone(), output.clone())?;
         }
-        Commands::Knowledge { action } => {
+        Some(Commands::Knowledge { action }) => {
             // Handle knowledge base commands
             cli::handle_knowledge(format!("{:?}", action))?;
         }
-        Commands::Scrape {
+        Some(Commands::Scrape {
             urls,
             depth,
             add_to_kb,
-        } => {
+        }) => {
             // Handle web scraping
             cli::handle_scrape(&urls, depth, add_to_kb).await?;
         }
-        Commands::Task { action } => {
+        Some(Commands::Task { action }) => {
             // Handle task management
             cli::handle_task(format!("{:?}", action))?;
         }
-        Commands::Solo { task, steps } => {
-            // Handle solo mode
+        Some(Commands::Solo { task, steps }) => {
+            // Handle solo mode with explicit task
             cli::handle_solo(&task, steps).await?;
         }
-        Commands::Docs {
+        Some(Commands::Docs {
             path,
             format,
             output,
-        } => {
+        }) => {
             // Handle documentation generation
             cli::handle_docs(&path, &format, &output)?;
+        }
+        None => {
+            // Default: enter solo mode for AI programming
+            println!("Welcome to Codex AI Programming Assistant");
+            println!("Entering solo mode for AI programming...");
+            
+            // TODO: 主人~ 这里需要实现solo模式的交互式输入
+            // For now, we'll start with a default task prompt
+            let default_task = "I need help with AI programming. Please guide me through the process.";
+            cli::handle_solo(default_task, 10).await?;
         }
     }
 

@@ -65,13 +65,37 @@ cross-compile:
 	# macOS aarch64
 	CARGO_BUILD_TARGET=aarch64-apple-darwin $(CARGO) build --release
 
-# Install the binary
-install: 
-	$(CARGO) install --path .
+# Install the binary to ~/codex/bin
+install: release
+	@mkdir -p ~/codex/bin
+	@cp target/release/codex ~/codex/bin/
+	@echo "Codex installed to ~/codex/bin"
+	@echo ""
+	@echo "============================================="
+	@echo "To use Codex directly from the command line,"
+	@echo "you need to add ~/codex/bin to your PATH."
+	@echo "============================================="
+	@echo ""
+	@echo 'Check if ~/codex/bin is already in PATH:'
+	@echo '  echo $$PATH | grep -q ~/codex/bin && echo "✓ Already in PATH" || echo "✗ Not in PATH"'
+	@echo ""
+	@echo 'To add it temporarily (current session only):'
+	@echo '  export PATH=$$HOME/codex/bin:$$PATH'
+	@echo ""
+	@echo 'To add it permanently, add the following line to your shell configuration file:'
+	@echo '  For Bash: ~/.bashrc or ~/.bash_profile'
+	@echo '  For Zsh:  ~/.zshrc'
+	@echo '  For Fish: ~/.config/fish/config.fish'
+	@echo ""
+	@echo '  export PATH=$$HOME/codex/bin:$$PATH'
+	@echo ""
+	@echo 'After adding, run "source <your_shell_config_file>" to apply changes immediately.'
+	@echo ""
 
-# Uninstall the binary
+# Uninstall the binary from ~/codex/bin
 uninstall: 
-	$(CARGO) uninstall codex
+	@rm -f ~/codex/bin/codex
+	@echo "Codex uninstalled from ~/codex/bin"
 
 # Show help
 help: 
