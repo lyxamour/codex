@@ -200,4 +200,37 @@ fn test_tool_registry_load_from_yaml() {
     let temp_path = temp_file.path().to_str().unwrap();
     
     // 写入测试YAML内容
-    let yaml_content = r#
+    let yaml_content = r#"name: "yaml_test_tool"
+description: "从YAML加载的测试工具"
+version: "1.0.0"
+category: "yaml"
+parameters:
+  - name: "test_param"
+    type: "string"
+    required: true
+    description: "测试参数"
+  - name: "optional_param"
+    type: "boolean"
+    required: false
+    description: "可选参数"
+    default: "false"
+execution:
+  type: "builtin_function"
+  handler: "test_handler"
+  timeout: 30
+"#;
+    
+    // 写入YAML内容到临时文件
+    fs::write(temp_path, yaml_content).unwrap();
+    
+    // 从YAML加载工具
+    let result = registry.load_from_yaml(temp_path);
+    assert!(result.is_ok(), "从YAML加载工具失败");
+    
+    // 验证工具已加载
+    assert!(registry.has_tool("yaml_test_tool"), "从YAML加载的工具应该存在");
+    
+    let loaded_tool = registry.get_tool("yaml_test_tool").unwrap();
+    assert_eq!(loaded_tool.name, "yaml_test_tool", "加载的工具名称不正确");
+    assert_eq!(loaded_tool.category, "yaml", "加载的工具类别不正确");
+}
