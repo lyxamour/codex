@@ -1,7 +1,7 @@
 [package]
 name = "codex"
-version = "0.4.4"
-authors = ["Your Name <your.email@example.com>"]
+version = "1.0.0"
+authors = ["lyxamour <your.email@example.com>"]
 edition = "2021"
 description = "A CLI-based AI programming tool with local knowledge base, remote scraping, and multi-AI platform support"
 license = "MIT"
