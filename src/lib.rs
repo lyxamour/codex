@@ -4,8 +4,10 @@
 
 // 公共模块导出
 pub mod ai;
+pub mod ai_response_quality;
 pub mod cli;
 pub mod code;
+pub mod code_understanding;
 pub mod command;
 pub mod config;
 pub mod context;
