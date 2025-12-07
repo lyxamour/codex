@@ -245,7 +245,7 @@ async fn test_tool_executor_creation() {
     );
     
     // 验证创建过程没有出错
-    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    let _executor = codex::tools::executor::ToolExecutor::new(registry);
     assert!(true, "工具执行器创建成功");
 }
 
@@ -384,4 +384,39 @@ async fn test_tool_executor_unimplemented_tool() {
         },
         _ => panic!("执行不存在的工具时应该返回错误"),
     }
+}
+
+#[test]
+fn test_tool_localization_creation() {
+    // 测试工具本地化管理器的创建
+    let localization = codex::tools::localization::ToolLocalization::new();
+    assert!(localization.is_ok(), "创建工具本地化管理器失败");
+}
+
+#[test]
+fn test_tool_localization_set_lang() {
+    // 测试设置当前语言
+    let mut localization = codex::tools::localization::ToolLocalization::new().unwrap();
+    
+    // 设置为英语
+    localization.set_lang("en-US");
+    // 设置为中文
+    localization.set_lang("zh-CN");
+    
+    // 验证设置语言不会导致崩溃
+    assert!(true, "设置语言成功");
+}
+
+#[test]
+fn test_tool_localization_get_string() {
+    // 测试获取本地化字符串
+    let localization = codex::tools::localization::ToolLocalization::new().unwrap();
+    
+    // 获取存在的字符串（由于资源为空，应该返回key本身）
+    let result = localization.get_string("test_key");
+    assert_eq!(result, "test_key", "获取不存在的本地化字符串应该返回key本身");
+    
+    // 测试不同key
+    let result2 = localization.get_string("another_key");
+    assert_eq!(result2, "another_key", "获取不存在的本地化字符串应该返回key本身");
 }
