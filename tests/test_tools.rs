@@ -2,6 +2,7 @@
 use codex::tools::builtin::file::read_file;
 use codex::tools::builtin::shell::execute_command;
 use codex::tools::parser::ToolParser;
+use codex::tools::registry::{ToolMetadata, ToolParameter, ToolRegistry};
 use std::fs;
 
 #[test]
@@ -83,3 +84,120 @@ fn test_read_nonexistent_file() {
     let result = read_file("non_existent_file.txt", Some("utf-8"));
     assert!(result.is_err(), "读取不存在的文件应该失败");
 }
+
+#[test]
+fn test_tool_registry_creation() {
+    // 测试创建工具注册表实例
+    let registry = ToolRegistry::new();
+    assert!(registry.is_ok(), "创建工具注册表实例失败");
+    
+    let registry = registry.unwrap();
+    assert!(!registry.list_tools().is_empty(), "工具注册表应该包含内置工具");
+}
+
+#[test]
+fn test_tool_registry_register() {
+    // 测试注册新工具
+    let mut registry = ToolRegistry::new().unwrap();
+    
+    // 创建测试工具元数据
+    let test_tool = ToolMetadata {
+        name: "test_tool".to_string(),
+        description: "测试工具".to_string(),
+        version: "1.0.0".to_string(),
+        category: "test".to_string(),
+        parameters: vec![
+            ToolParameter {
+                name: "param1".to_string(),
+                r#type: "string".to_string(),
+                required: true,
+                description: "测试参数1".to_string(),
+                default: None,
+            },
+        ],
+    };
+    
+    // 注册工具
+    let result = registry.register_tool(test_tool);
+    assert!(result.is_ok(), "注册工具失败");
+    
+    // 验证工具已注册
+    assert!(registry.has_tool("test_tool"), "工具注册后应该存在");
+}
+
+#[test]
+fn test_tool_registry_get() {
+    // 测试获取工具元数据
+    let registry = ToolRegistry::new().unwrap();
+    
+    // 获取内置工具
+    let read_file_tool = registry.get_tool("read_file");
+    assert!(read_file_tool.is_some(), "应该能获取到内置的read_file工具");
+    
+    if let Some(tool) = read_file_tool {
+        assert_eq!(tool.name, "read_file", "工具名称不正确");
+        assert_eq!(tool.category, "builtin", "工具类别不正确");
+    }
+    
+    // 获取不存在的工具
+    let nonexistent_tool = registry.get_tool("nonexistent_tool");
+    assert!(nonexistent_tool.is_none(), "获取不存在的工具应该返回None");
+}
+
+#[test]
+fn test_tool_registry_has_tool() {
+    // 测试检查工具是否存在
+    let registry = ToolRegistry::new().unwrap();
+    
+    // 检查内置工具是否存在
+    assert!(registry.has_tool("read_file"), "read_file工具应该存在");
+    assert!(registry.has_tool("write_file"), "write_file工具应该存在");
+    
+    // 检查不存在的工具
+    assert!(!registry.has_tool("nonexistent_tool"), "不存在的工具应该返回false");
+}
+
+#[test]
+fn test_tool_registry_list_tools() {
+    // 测试获取所有工具列表
+    let registry = ToolRegistry::new().unwrap();
+    
+    let tools = registry.list_tools();
+    assert!(!tools.is_empty(), "工具列表不应该为空");
+    
+    // 检查列表中是否包含内置工具
+    let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
+    assert!(tool_names.contains(&"read_file".to_string()), "工具列表应该包含read_file");
+    assert!(tool_names.contains(&"write_file".to_string()), "工具列表应该包含write_file");
+}
+
+#[test]
+fn test_tool_registry_list_by_category() {
+    // 测试按类别获取工具列表
+    let registry = ToolRegistry::new().unwrap();
+    
+    // 获取builtin类别的工具
+    let builtin_tools = registry.list_tools_by_category("builtin");
+    assert!(!builtin_tools.is_empty(), "builtin类别应该包含工具");
+    
+    // 检查所有工具都属于builtin类别
+    for tool in builtin_tools {
+        assert_eq!(tool.category, "builtin", "按类别获取的工具应该属于该类别");
+    }
+    
+    // 获取不存在的类别
+    let nonexistent_tools = registry.list_tools_by_category("nonexistent");
+    assert!(nonexistent_tools.is_empty(), "不存在的类别应该返回空列表");
+}
+
+#[test]
+fn test_tool_registry_load_from_yaml() {
+    // 测试从YAML文件加载工具
+    let mut registry = ToolRegistry::new().unwrap();
+    
+    // 创建临时YAML文件
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let temp_path = temp_file.path().to_str().unwrap();
+    
+    // 写入测试YAML内容
+    let yaml_content = r#
