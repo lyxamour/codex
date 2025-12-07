@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "created_at": {
+    "secs_since_epoch": 1765026551,
+    "nanos_since_epoch": 62399000
+  },
+  "updated_at": {
+    "secs_since_epoch": 1765026551,
+    "nanos_since_epoch": 62399000
+  },
+  "file_count": 0,
+  "total_elements": 0,
+  "files": {}
+}

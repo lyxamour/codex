@@ -1,6 +1,5 @@
-
 //! 配置验证器
-//! 
+//!
 //! 负责验证配置的有效性和完整性
 
 use super::app::*;
@@ -63,16 +62,16 @@ impl ConfigValidator {
 
         // 验证应用设置
         self.validate_app_settings(&config.app, &mut errors);
-        
+
         // 验证AI配置
         self.validate_ai_config(&config.ai, &mut errors);
-        
+
         // 验证工具配置
         self.validate_tools_config(&config.tools, &mut errors);
-        
+
         // 验证UI配置
         self.validate_ui_config(&config.ui, &mut errors);
-        
+
         // 验证知识库配置
         self.validate_knowledge_config(&config.knowledge, &mut errors);
 
@@ -84,7 +83,11 @@ impl ConfigValidator {
     }
 
     /// 验证应用设置
-    fn validate_app_settings(&self, settings: &AppSettings, errors: &mut Vec<ConfigValidationError>) {
+    fn validate_app_settings(
+        &self,
+        settings: &AppSettings,
+        errors: &mut Vec<ConfigValidationError>,
+    ) {
         // 验证应用名称
         if settings.name.is_empty() {
             errors.push(ConfigValidationError::MissingField {
@@ -173,7 +176,9 @@ impl ConfigValidator {
                     path: "ai.openai.base_url".to_string(),
                     description: "OpenAI API基础URL不能为空".to_string(),
                 });
-            } else if !openai_config.base_url.starts_with("http://") && !openai_config.base_url.starts_with("https://") {
+            } else if !openai_config.base_url.starts_with("http://")
+                && !openai_config.base_url.starts_with("https://")
+            {
                 errors.push(ConfigValidationError::InvalidValue {
                     path: "ai.openai.base_url".to_string(),
                     value: openai_config.base_url.clone(),
@@ -227,7 +232,11 @@ impl ConfigValidator {
     }
 
     /// 验证知识库配置
-    fn validate_knowledge_config(&self, config: &KnowledgeConfig, errors: &mut Vec<ConfigValidationError>) {
+    fn validate_knowledge_config(
+        &self,
+        config: &KnowledgeConfig,
+        errors: &mut Vec<ConfigValidationError>,
+    ) {
         // 验证索引目录
         if config.index_dir.to_str().unwrap_or("").is_empty() {
             errors.push(ConfigValidationError::MissingField {
@@ -292,13 +301,24 @@ impl fmt::Display for ConfigValidationError {
             ConfigValidationError::MissingField { path, description } => {
                 write!(f, "缺少必填字段 '{}': {}", path, description)
             }
-            ConfigValidationError::InvalidValue { path, value, expected } => {
-                write!(f, "字段 '{}' 的值 '{}' 无效，预期: {}", path, value, expected)
+            ConfigValidationError::InvalidValue {
+                path,
+                value,
+                expected,
+            } => {
+                write!(
+                    f,
+                    "字段 '{}' 的值 '{}' 无效，预期: {}",
+                    path, value, expected
+                )
             }
             ConfigValidationError::InvalidPath { path, value } => {
                 write!(f, "字段 '{}' 的路径 '{}' 无效", path, value)
             }
-            ConfigValidationError::InvalidCombination { fields, description } => {
+            ConfigValidationError::InvalidCombination {
+                fields,
+                description,
+            } => {
                 write!(f, "无效的配置组合 [{}]: {}", fields.join(", "), description)
             }
         }

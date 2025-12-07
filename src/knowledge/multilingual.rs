@@ -1,5 +1,5 @@
 //! 多语言代码支持
-//! 
+//!
 //! 提供对多种编程语言的支持和处理
 
 use crate::error::AppResult;
@@ -60,10 +60,9 @@ impl MultilingualProcessor {
             ],
         })
     }
-    
+
     /// 处理代码文件
-    pub fn process_file(&self, file: &mut CodeFile) -> AppResult<()>
-    {
+    pub fn process_file(&self, file: &mut CodeFile) -> AppResult<()> {
         // TODO: 主人~ 这里需要实现代码文件处理逻辑
         // 提示：根据文件扩展名自动识别语言类型，提取代码元素等
         Ok(())

@@ -1,7 +1,10 @@
+use crate::plugins::{PluginConfig, PluginManager};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 /// Subagent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,12 +105,47 @@ pub trait Subagent: Sync + Send {
 
     /// Update the subagent configuration
     fn update_config(&mut self, config: SubagentConfig);
+
+    /// Get the list of available tools for this subagent
+    fn get_available_tools(&self) -> Vec<String> {
+        self.config().default_tools.clone()
+    }
+
+    /// Check if the subagent supports a specific tool
+    fn supports_tool(&self, tool_name: &str) -> bool {
+        self.get_available_tools().contains(&tool_name.to_string())
+    }
+
+    /// Get the current status of the subagent
+    fn get_status(&self) -> SubagentStatus {
+        SubagentStatus::Ready
+    }
+
+    /// Initialize the subagent with the given context
+    async fn initialize(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    /// Shutdown the subagent
+    async fn shutdown(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+}
+
+/// Subagent status
+enum SubagentStatus {
+    Ready,
+    Busy,
+    Error(String),
+    Initializing,
+    Shutdown,
 }
 
 /// Subagent registry for managing subagents
 pub struct SubagentRegistry {
     subagents: HashMap<String, Box<dyn Subagent>>,
     default_subagents: HashMap<SubagentType, String>,
+    plugin_manager: Option<Arc<RwLock<PluginManager>>>,
 }
 
 impl Default for SubagentRegistry {
@@ -115,6 +153,7 @@ impl Default for SubagentRegistry {
         let mut registry = Self {
             subagents: HashMap::new(),
             default_subagents: HashMap::new(),
+            plugin_manager: None,
         };
 
         // Register default subagents
@@ -128,6 +167,36 @@ impl SubagentRegistry {
     /// Create a new subagent registry
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// 设置插件管理器
+    pub fn set_plugin_manager(&mut self, plugin_manager: Arc<RwLock<PluginManager>>) {
+        self.plugin_manager = Some(plugin_manager);
+    }
+
+    /// 从插件加载子代理
+    pub async fn load_from_plugins(&mut self) -> Result<(), Box<dyn Error>> {
+        if let Some(plugin_manager) = &self.plugin_manager {
+            let manager = plugin_manager.read().unwrap();
+            // 遍历所有插件，检查是否有子代理插件
+            for plugin_info in manager.list_plugins() {
+                println!("Checking plugin {} for subagents...", plugin_info.name);
+
+                // 检查插件是否实现了SubagentProvider接口
+                // TODO: 主人~ 这里需要实现插件接口检查逻辑
+                // if let Some(subagent_provider) = plugin_info.plugin.as_any().downcast_ref::<dyn SubagentProvider>() {
+                //     // 获取插件提供的子代理
+                //     let subagents = subagent_provider.provide_subagents();
+                //
+                //     // 注册子代理
+                //     for subagent in subagents {
+                //         self.register(Box::new(subagent));
+                //         println!("Registered subagent '{}' from plugin '{}'", subagent.name(), plugin_info.name);
+                //     }
+                // }
+            }
+        }
+        Ok(())
     }
 
     /// Register default subagents

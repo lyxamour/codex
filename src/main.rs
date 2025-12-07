@@ -8,6 +8,7 @@ mod config;
 mod core;
 mod error;
 mod knowledge;
+mod parsers;
 mod tools;
 
 // Import existing modules
@@ -19,6 +20,7 @@ mod context;
 mod docs;
 mod hook;
 mod knowledge_base;
+mod plugins;
 mod scraper;
 mod solo;
 mod subagent;
@@ -32,6 +34,12 @@ use crate::error::{init_error_reporting, AppResult};
 // Import knowledge and task actions from their respective modules
 use knowledge_base::KnowledgeActions;
 use task::TaskActions;
+
+// Import provider actions from ai adapter
+use ai::adapter::ProviderActions;
+
+// Import plugin actions from cli
+use cli::PluginActions;
 
 /// A CLI-based AI programming tool with local knowledge base, remote scraping, and multi-AI platform support
 #[derive(Parser, Debug)]
@@ -112,6 +120,12 @@ enum Commands {
         steps: u32,
     },
 
+    /// AI platform management
+    Provider {
+        #[command(subcommand)]
+        action: ProviderActions,
+    },
+
     /// Generate documentation for code
     Docs {
         /// Path to code files or directory
@@ -124,6 +138,49 @@ enum Commands {
         /// Output directory
         #[arg(short, long, default_value = ".")]
         output: String,
+    },
+
+    /// Plugin management commands
+    Plugin {
+        #[command(subcommand)]
+        action: PluginCommands,
+    },
+}
+
+/// Plugin subcommands
+#[derive(Subcommand, Debug)]
+enum PluginCommands {
+    /// List all installed plugins
+    List,
+
+    /// Install a plugin
+    Install {
+        /// Plugin name to install
+        plugin_name: String,
+    },
+
+    /// Uninstall a plugin
+    Uninstall {
+        /// Plugin name to uninstall
+        plugin_name: String,
+    },
+
+    /// Enable a plugin
+    Enable {
+        /// Plugin name to enable
+        plugin_name: String,
+    },
+
+    /// Disable a plugin
+    Disable {
+        /// Plugin name to disable
+        plugin_name: String,
+    },
+
+    /// Show plugin information
+    Info {
+        /// Plugin name to show information for
+        plugin_name: String,
     },
 }
 
@@ -190,11 +247,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some(Commands::Task { action }) => {
             // Handle task management
-            cli::handle_task(format!("{:?}", action))?;
+            cli::handle_task(action)?;
         }
         Some(Commands::Solo { task, steps }) => {
             // Handle solo mode with explicit task
             cli::handle_solo(&task, steps).await?;
+        }
+        Some(Commands::Provider { action }) => {
+            // Handle AI platform management
+            cli::handle_provider(action).await?;
         }
         Some(Commands::Docs {
             path,
@@ -203,6 +264,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }) => {
             // Handle documentation generation
             cli::handle_docs(&path, &format, &output)?;
+        }
+        Some(Commands::Plugin { action }) => {
+            // Handle plugin management commands
+            match action {
+                PluginCommands::List => {
+                    cli::handle_plugin(cli::PluginActions::List).await?;
+                }
+                PluginCommands::Install { plugin_name } => {
+                    cli::handle_plugin(cli::PluginActions::Install(plugin_name)).await?;
+                }
+                PluginCommands::Uninstall { plugin_name } => {
+                    cli::handle_plugin(cli::PluginActions::Uninstall(plugin_name)).await?;
+                }
+                PluginCommands::Enable { plugin_name } => {
+                    cli::handle_plugin(cli::PluginActions::Enable(plugin_name)).await?;
+                }
+                PluginCommands::Disable { plugin_name } => {
+                    cli::handle_plugin(cli::PluginActions::Disable(plugin_name)).await?;
+                }
+                PluginCommands::Info { plugin_name } => {
+                    cli::handle_plugin(cli::PluginActions::Info(plugin_name)).await?;
+                }
+            }
         }
         None => {
             // Default: enter solo mode for AI programming

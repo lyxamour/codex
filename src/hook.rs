@@ -1,9 +1,11 @@
+use crate::plugins::{PluginConfig, PluginManager};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::process::Command;
 use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::Instant;
 
 /// Hook event types
@@ -398,12 +400,43 @@ impl Hook for InlineHook {
 pub struct HookManager {
     hooks: HashMap<HookEvent, Vec<Box<dyn Hook>>>,
     execution_count: u64,
+    plugin_manager: Option<Arc<RwLock<PluginManager>>>,
 }
 
 impl HookManager {
     /// Create a new hook manager
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// 设置插件管理器
+    pub fn set_plugin_manager(&mut self, plugin_manager: Arc<RwLock<PluginManager>>) {
+        self.plugin_manager = Some(plugin_manager);
+    }
+
+    /// 从插件加载钩子
+    pub async fn load_from_plugins(&mut self) -> Result<(), Box<dyn Error>> {
+        if let Some(plugin_manager) = &self.plugin_manager {
+            let manager = plugin_manager.read().unwrap();
+            // 遍历所有插件，检查是否有钩子插件
+            for plugin_info in manager.list_plugins() {
+                println!("Checking plugin {} for hooks...", plugin_info.name);
+
+                // 检查插件是否实现了HookProvider接口
+                // TODO: 主人~ 这里需要实现插件接口检查逻辑
+                // if let Some(hook_provider) = plugin_info.plugin.as_any().downcast_ref::<dyn HookProvider>() {
+                //     // 获取插件提供的钩子
+                //     let hooks = hook_provider.provide_hooks();
+                //
+                //     // 注册钩子
+                //     for hook in hooks {
+                //         self.register(Box::new(hook));
+                //         println!("Registered hook '{}' from plugin '{}'", hook.name(), plugin_info.name);
+                //     }
+                // }
+            }
+        }
+        Ok(())
     }
 
     /// Register a new hook

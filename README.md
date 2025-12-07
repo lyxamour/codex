@@ -108,7 +108,7 @@ Codex 使用 YAML 配置文件，默认路径为 `~/.codex/config.yaml`。
 ```yaml
 app:
   name: codex
-  version: "0.1.0"
+  version: "0.2.0"
   data_dir: ~/.codex
   log_level: info
 

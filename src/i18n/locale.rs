@@ -1,11 +1,11 @@
 //! 语言和地区定义
-//! 
+//!
 //! 定义应用支持的语言和地区类型
 
 use serde::{Deserialize, Serialize};
 
 /// 支持的自然语言列表
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NaturalLanguage {
     /// 简体中文
     ChineseSimplified,
@@ -48,7 +48,7 @@ impl NaturalLanguage {
             NaturalLanguage::Portuguese => "pt",
         }
     }
-    
+
     /// 获取语言的显示名称
     pub fn display_name(&self) -> &str {
         match self {
@@ -65,7 +65,7 @@ impl NaturalLanguage {
             NaturalLanguage::Portuguese => "Português",
         }
     }
-    
+
     /// 从ISO代码创建语言实例
     pub fn from_iso_code(code: &str) -> Option<Self> {
         match code.to_lowercase().as_str() {
@@ -156,7 +156,7 @@ impl Language {
             Language::Shell => "Shell",
         }
     }
-    
+
     /// 获取语言的常见文件扩展名
     pub fn extensions(&self) -> Vec<&str> {
         match self {
@@ -182,18 +182,15 @@ impl Language {
             Language::Shell => vec!["sh", "bash", "zsh"],
         }
     }
-    
+
     /// 从文件名或扩展名推断语言
     pub fn from_filename(filename: &str) -> Option<Self> {
         // 获取文件扩展名
-        let extension = filename
-            .rsplit('.')
-            .next()?
-            .to_lowercase();
-        
+        let extension = filename.rsplit('.').next()?.to_lowercase();
+
         Self::from_extension(&extension)
     }
-    
+
     /// 从扩展名推断语言
     pub fn from_extension(extension: &str) -> Option<Self> {
         match extension {

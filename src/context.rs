@@ -8,23 +8,23 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextItem {
     /// Item ID
-    id: String,
+    pub id: String,
     /// Content of the context item
-    content: String,
+    pub content: String,
     /// Item type
-    item_type: ContextItemType,
+    pub item_type: ContextItemType,
     /// Importance score (0-100)
-    importance: u8,
+    pub importance: u8,
     /// Creation timestamp (Unix seconds)
-    created_at: i64,
+    pub created_at: i64,
     /// Last accessed timestamp (Unix seconds)
-    last_accessed: i64,
+    pub last_accessed: i64,
     /// Reference count
-    ref_count: u32,
+    pub ref_count: u32,
     /// Token count (approximate)
-    token_count: usize,
+    pub token_count: usize,
     /// Tags for categorization
-    tags: Vec<String>,
+    pub tags: Vec<String>,
 }
 
 /// Context item type
@@ -582,12 +582,105 @@ impl ContextManager {
     }
 }
 
+/// 上下文收集器，用于收集和管理上下文信息
+pub struct ContextCollector {
+    /// 知识库引用（用于查询相关代码）
+    knowledge_base: Option<Arc<dyn crate::knowledge::base::KnowledgeBase>>,
+    /// 相关代码收集深度
+    code_depth: u32,
+    /// 相关信息收集深度
+    info_depth: u32,
+}
+
+impl ContextCollector {
+    /// 创建新的上下文收集器
+    pub fn new() -> Self {
+        Self {
+            knowledge_base: None,
+            code_depth: 2,
+            info_depth: 1,
+        }
+    }
+
+    /// 设置知识库引用
+    pub fn with_knowledge_base(
+        mut self,
+        kb: Arc<dyn crate::knowledge::base::KnowledgeBase>,
+    ) -> Self {
+        self.knowledge_base = Some(kb);
+        self
+    }
+
+    /// 设置相关代码收集深度
+    pub fn code_depth(mut self, depth: u32) -> Self {
+        self.code_depth = depth;
+        self
+    }
+
+    /// 设置相关信息收集深度
+    pub fn info_depth(mut self, depth: u32) -> Self {
+        self.info_depth = depth;
+        self
+    }
+
+    /// 基于查询收集相关代码
+    pub fn collect_related_code(&self, query: &str) -> Vec<ContextItem> {
+        // TODO: 主人~ 这里需要实现基于查询的相关代码收集逻辑
+        // 1. 使用知识库搜索相关代码
+        // 2. 提取相关代码元素
+        // 3. 为每个代码元素创建ContextItem
+        // 4. 返回相关代码的ContextItem列表
+        Vec::new()
+    }
+
+    /// 基于任务收集相关信息
+    pub fn collect_related_info(&self, task: &str) -> Vec<ContextItem> {
+        // TODO: 主人~ 这里需要实现基于任务的相关信息收集逻辑
+        // 1. 分析任务描述
+        // 2. 提取关键词
+        // 3. 搜索相关信息
+        // 4. 为每个信息创建ContextItem
+        // 5. 返回相关信息的ContextItem列表
+        Vec::new()
+    }
+
+    /// 为上下文项评分（相关性评分）
+    pub fn score_context_item(&self, item: &ContextItem, query: &str) -> f32 {
+        // TODO: 主人~ 这里需要实现上下文相关性评分逻辑
+        // 1. 计算上下文项与查询的相关性
+        // 2. 返回0-1之间的相关性分数
+        0.5 // 默认分数
+    }
+
+    /// 收集并评分上下文
+    pub fn collect_and_score(&self, query: &str, task: Option<&str>) -> Vec<(f32, ContextItem)> {
+        let mut items = Vec::new();
+
+        // 收集相关代码
+        let related_code = self.collect_related_code(query);
+        items.extend(related_code);
+
+        // 如果有任务，收集相关信息
+        if let Some(task) = task {
+            let related_info = self.collect_related_info(task);
+            items.extend(related_info);
+        }
+
+        // 为每个上下文项评分
+        items
+            .into_iter()
+            .map(|item| (self.score_context_item(&item, query), item))
+            .collect()
+    }
+}
+
 /// Context manager builder for easy configuration
 pub struct ContextManagerBuilder {
     max_tokens: usize,
     strategy: CompressionStrategy,
     tokenizer: Option<Arc<dyn Tokenizer>>,
     importance_weights: Option<HashMap<ContextItemType, f32>>,
+    context_collector: Option<ContextCollector>,
 }
 
 impl ContextManagerBuilder {
@@ -598,6 +691,7 @@ impl ContextManagerBuilder {
             strategy: CompressionStrategy::Hybrid,
             tokenizer: None,
             importance_weights: None,
+            context_collector: None,
         }
     }
 
@@ -625,6 +719,12 @@ impl ContextManagerBuilder {
         self
     }
 
+    /// Set context collector
+    pub fn context_collector(mut self, collector: ContextCollector) -> Self {
+        self.context_collector = Some(collector);
+        self
+    }
+
     /// Build the context manager
     pub fn build(self) -> ContextManager {
         let mut manager = ContextManager::new(self.max_tokens, self.strategy);
@@ -638,5 +738,61 @@ impl ContextManagerBuilder {
         }
 
         manager
+    }
+}
+
+/// 上下文压缩器，用于压缩上下文内容
+pub struct ContextCompressor {
+    /// 压缩后最大令牌数
+    max_tokens: usize,
+    /// 压缩策略
+    strategy: CompressionStrategy,
+    /// 令牌计算器
+    tokenizer: Arc<dyn Tokenizer>,
+}
+
+impl ContextCompressor {
+    /// 创建新的上下文压缩器
+    pub fn new(max_tokens: usize, strategy: CompressionStrategy) -> Self {
+        Self {
+            max_tokens,
+            strategy,
+            tokenizer: Arc::new(DefaultTokenizer),
+        }
+    }
+
+    /// 设置令牌计算器
+    pub fn set_tokenizer(&mut self, tokenizer: Arc<dyn Tokenizer>) {
+        self.tokenizer = tokenizer;
+    }
+
+    /// 压缩上下文项列表
+    pub fn compress(&self, items: Vec<ContextItem>) -> Vec<ContextItem> {
+        // TODO: 主人~ 这里需要实现上下文压缩逻辑
+        // 1. 根据压缩策略对上下文项进行排序
+        // 2. 选择最重要的上下文项，直到达到最大令牌数
+        // 3. 返回压缩后的上下文项列表
+        items
+    }
+
+    /// 基于重要性筛选上下文
+    pub fn filter_by_importance(
+        &self,
+        items: Vec<ContextItem>,
+        min_importance: u8,
+    ) -> Vec<ContextItem> {
+        items
+            .into_iter()
+            .filter(|item| item.importance >= min_importance)
+            .collect()
+    }
+
+    /// 生成上下文摘要
+    pub fn generate_summary(&self, items: Vec<ContextItem>) -> String {
+        // TODO: 主人~ 这里需要实现上下文摘要生成逻辑
+        // 1. 分析上下文内容
+        // 2. 生成简洁的摘要
+        // 3. 返回摘要字符串
+        "上下文摘要".to_string()
     }
 }

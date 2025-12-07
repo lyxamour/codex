@@ -1,9 +1,11 @@
+use crate::plugins::{PluginConfig, PluginManager};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::process::Command;
+use std::process::Command as StdCommand;
 use std::sync::Arc;
+use std::sync::RwLock;
 /// Command result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandResult {
@@ -200,7 +202,7 @@ impl CommandHandler for ExternalCommand {
         );
 
         // Build command with arguments
-        let mut command = Command::new(&self.command_path);
+        let mut command = StdCommand::new(&self.command_path);
         command.args(args);
         command.current_dir(&context.cwd);
 
@@ -246,6 +248,7 @@ pub struct CommandRegistry {
     commands: HashMap<String, Box<dyn CommandHandler>>,
     aliases: HashMap<String, String>,
     builtin_commands: Vec<String>,
+    plugin_manager: Option<Arc<RwLock<PluginManager>>>,
 }
 
 impl Default for CommandRegistry {
@@ -254,6 +257,7 @@ impl Default for CommandRegistry {
             commands: HashMap::new(),
             aliases: HashMap::new(),
             builtin_commands: Vec::new(),
+            plugin_manager: None,
         };
 
         registry.register_builtin_commands();
@@ -266,6 +270,36 @@ impl CommandRegistry {
     /// Create a new command registry
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// 设置插件管理器
+    pub fn set_plugin_manager(&mut self, plugin_manager: Arc<RwLock<PluginManager>>) {
+        self.plugin_manager = Some(plugin_manager);
+    }
+
+    /// 从插件加载命令
+    pub async fn load_from_plugins(&mut self) -> Result<(), Box<dyn Error>> {
+        if let Some(plugin_manager) = &self.plugin_manager {
+            let manager = plugin_manager.read().unwrap();
+            // 遍历所有插件，检查是否有命令插件
+            for plugin_info in manager.list_plugins() {
+                println!("Checking plugin {} for commands...", plugin_info.name);
+
+                // 检查插件是否实现了CommandProvider接口
+                // TODO: 主人~ 这里需要实现插件接口检查逻辑
+                // if let Some(command_provider) = plugin_info.plugin.as_any().downcast_ref::<dyn CommandProvider>() {
+                //     // 获取插件提供的命令
+                //     let commands = command_provider.provide_commands();
+                //
+                //     // 注册命令
+                //     for command in commands {
+                //         self.register(Box::new(command));
+                //         println!("Registered command '{}' from plugin '{}'", command.name(), plugin_info.name);
+                //     }
+                // }
+            }
+        }
+        Ok(())
     }
 
     /// Register a command handler

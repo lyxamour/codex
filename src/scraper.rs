@@ -104,17 +104,12 @@ impl WebScraper {
     }
 
     /// Scrape multiple URLs
-    pub async fn scrape(
-        &mut self,
-        urls: &[String],
-    ) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+    pub async fn scrape(&mut self, urls: &[String]) -> Result<Vec<ScrapedContent>, Box<dyn Error>> {
         let mut results = Vec::new();
 
         for url in urls {
             let scraped = self.scrape_single(url, 0).await?;
-            for content in scraped {
-                results.push((content.url, content.content));
-            }
+            results.extend(scraped);
         }
 
         Ok(results)

@@ -68,6 +68,12 @@ impl ConfigLoader {
 
     /// 从文件加载配置
     fn load_from_file(&self, path: PathBuf) -> ConfigResult<AppConfig> {
+        // 检查文件是否存在
+        if !path.exists() {
+            // 文件不存在，返回默认配置
+            return Ok(self.get_default_config());
+        }
+
         let content = fs::read_to_string(path)?;
 
         // 尝试直接解析配置
@@ -113,58 +119,56 @@ impl ConfigLoader {
 
     /// 从环境变量加载配置覆盖
     fn load_from_env(&self, config: &mut AppConfig) {
-        // 获取所有环境变量
-        let env_vars: HashMap<String, String> = env::vars().collect();
-
+        // 直接使用env::var获取环境变量，而不是env::vars()，因为在某些情况下env::vars()可能不会返回所有环境变量
         // 处理应用设置的环境变量
-        self.process_env_vars_for_app(&env_vars, config);
+        self.process_env_vars_for_app(config);
 
         // 处理AI配置的环境变量
-        self.process_env_vars_for_ai(&env_vars, config);
+        self.process_env_vars_for_ai(config);
 
         // 处理工具配置的环境变量
-        self.process_env_vars_for_tools(&env_vars, config);
+        self.process_env_vars_for_tools(config);
 
         // 处理UI配置的环境变量
-        self.process_env_vars_for_ui(&env_vars, config);
+        self.process_env_vars_for_ui(config);
 
         // 处理知识库配置的环境变量
-        self.process_env_vars_for_knowledge(&env_vars, config);
+        self.process_env_vars_for_knowledge(config);
     }
 
     /// 处理应用设置的环境变量
-    fn process_env_vars_for_app(&self, env_vars: &HashMap<String, String>, config: &mut AppConfig) {
+    fn process_env_vars_for_app(&self, config: &mut AppConfig) {
         // 应用名称
-        if let Some(value) = env_vars.get("CODEX_APP_NAME") {
-            config.app.name = value.to_string();
+        if let Ok(value) = env::var("CODEX_APP_NAME") {
+            config.app.name = value;
         }
 
         // 应用版本
-        if let Some(value) = env_vars.get("CODEX_APP_VERSION") {
-            config.app.version = value.to_string();
+        if let Ok(value) = env::var("CODEX_APP_VERSION") {
+            config.app.version = value;
         }
 
         // 数据目录
-        if let Some(value) = env_vars.get("CODEX_APP_DATA_DIR") {
+        if let Ok(value) = env::var("CODEX_APP_DATA_DIR") {
             config.app.data_dir = PathBuf::from(value);
         }
 
         // 日志级别
-        if let Some(value) = env_vars.get("CODEX_APP_LOG_LEVEL") {
-            config.app.log_level = value.to_string();
+        if let Ok(value) = env::var("CODEX_APP_LOG_LEVEL") {
+            config.app.log_level = value;
         }
 
         // 界面语言
-        if let Some(value) = env_vars.get("CODEX_APP_LANGUAGE") {
-            config.app.language = value.to_string();
+        if let Ok(value) = env::var("CODEX_APP_LANGUAGE") {
+            config.app.language = value;
         }
     }
 
     /// 处理AI配置的环境变量
-    fn process_env_vars_for_ai(&self, env_vars: &HashMap<String, String>, config: &mut AppConfig) {
+    fn process_env_vars_for_ai(&self, config: &mut AppConfig) {
         // 默认AI平台
-        if let Some(value) = env_vars.get("CODEX_AI_DEFAULT_PLATFORM") {
-            config.ai.default_platform = value.to_string();
+        if let Ok(value) = env::var("CODEX_AI_DEFAULT_PLATFORM") {
+            config.ai.default_platform = value;
         }
 
         // 确保OpenAI配置存在
@@ -174,33 +178,33 @@ impl ConfigLoader {
 
         if let Some(openai_config) = &mut config.ai.openai {
             // OpenAI API密钥
-            if let Some(value) = env_vars.get("CODEX_AI_OPENAI_API_KEY") {
-                openai_config.api_key = value.to_string();
+            if let Ok(value) = env::var("CODEX_AI_OPENAI_API_KEY") {
+                openai_config.api_key = value;
             }
 
             // OpenAI默认模型
-            if let Some(value) = env_vars.get("CODEX_AI_OPENAI_DEFAULT_MODEL") {
-                openai_config.default_model = value.to_string();
+            if let Ok(value) = env::var("CODEX_AI_OPENAI_DEFAULT_MODEL") {
+                openai_config.default_model = value;
             }
 
             // OpenAI API基础URL
-            if let Some(value) = env_vars.get("CODEX_AI_OPENAI_BASE_URL") {
-                openai_config.base_url = value.to_string();
+            if let Ok(value) = env::var("CODEX_AI_OPENAI_BASE_URL") {
+                openai_config.base_url = value;
             }
         }
 
         // AI缓存配置
-        if let Some(value) = env_vars.get("CODEX_AI_CACHE_ENABLED") {
+        if let Ok(value) = env::var("CODEX_AI_CACHE_ENABLED") {
             if let Ok(enabled) = value.parse::<bool>() {
                 config.ai.cache.enabled = enabled;
             }
         }
 
-        if let Some(value) = env_vars.get("CODEX_AI_CACHE_DIR") {
+        if let Ok(value) = env::var("CODEX_AI_CACHE_DIR") {
             config.ai.cache.dir = PathBuf::from(value);
         }
 
-        if let Some(value) = env_vars.get("CODEX_AI_CACHE_EXPIRATION") {
+        if let Ok(value) = env::var("CODEX_AI_CACHE_EXPIRATION") {
             if let Ok(expiration) = value.parse::<u64>() {
                 config.ai.cache.expiration = expiration;
             }
@@ -208,25 +212,21 @@ impl ConfigLoader {
     }
 
     /// 处理工具配置的环境变量
-    fn process_env_vars_for_tools(
-        &self,
-        env_vars: &HashMap<String, String>,
-        config: &mut AppConfig,
-    ) {
+    fn process_env_vars_for_tools(&self, config: &mut AppConfig) {
         // 工具定义目录
-        if let Some(value) = env_vars.get("CODEX_TOOLS_TOOLS_DIR") {
+        if let Ok(value) = env::var("CODEX_TOOLS_TOOLS_DIR") {
             config.tools.tools_dir = PathBuf::from(value);
         }
 
         // 默认超时时间
-        if let Some(value) = env_vars.get("CODEX_TOOLS_DEFAULT_TIMEOUT") {
+        if let Ok(value) = env::var("CODEX_TOOLS_DEFAULT_TIMEOUT") {
             if let Ok(timeout) = value.parse::<u32>() {
                 config.tools.default_timeout = timeout;
             }
         }
 
         // 是否启用MCP工具
-        if let Some(value) = env_vars.get("CODEX_TOOLS_MCP_ENABLED") {
+        if let Ok(value) = env::var("CODEX_TOOLS_MCP_ENABLED") {
             if let Ok(enabled) = value.parse::<bool>() {
                 config.tools.mcp_enabled = enabled;
             }
@@ -234,28 +234,28 @@ impl ConfigLoader {
     }
 
     /// 处理UI配置的环境变量
-    fn process_env_vars_for_ui(&self, env_vars: &HashMap<String, String>, config: &mut AppConfig) {
+    fn process_env_vars_for_ui(&self, config: &mut AppConfig) {
         // 是否启用彩色输出
-        if let Some(value) = env_vars.get("CODEX_UI_COLORED") {
+        if let Ok(value) = env::var("CODEX_UI_COLORED") {
             if let Ok(colored) = value.parse::<bool>() {
                 config.ui.colored = colored;
             }
         }
 
         // 默认主题
-        if let Some(value) = env_vars.get("CODEX_UI_THEME") {
-            config.ui.theme = value.to_string();
+        if let Ok(value) = env::var("CODEX_UI_THEME") {
+            config.ui.theme = value;
         }
 
         // 是否显示动画
-        if let Some(value) = env_vars.get("CODEX_UI_ANIMATIONS") {
+        if let Ok(value) = env::var("CODEX_UI_ANIMATIONS") {
             if let Ok(animations) = value.parse::<bool>() {
                 config.ui.animations = animations;
             }
         }
 
         // 字体大小
-        if let Some(value) = env_vars.get("CODEX_UI_FONT_SIZE") {
+        if let Ok(value) = env::var("CODEX_UI_FONT_SIZE") {
             if let Ok(font_size) = value.parse::<u8>() {
                 config.ui.font_size = font_size;
             }
@@ -263,29 +263,25 @@ impl ConfigLoader {
     }
 
     /// 处理知识库配置的环境变量
-    fn process_env_vars_for_knowledge(
-        &self,
-        env_vars: &HashMap<String, String>,
-        config: &mut AppConfig,
-    ) {
+    fn process_env_vars_for_knowledge(&self, config: &mut AppConfig) {
         // 索引目录
-        if let Some(value) = env_vars.get("CODEX_KNOWLEDGE_INDEX_DIR") {
+        if let Ok(value) = env::var("CODEX_KNOWLEDGE_INDEX_DIR") {
             config.knowledge.index_dir = PathBuf::from(value);
         }
 
         // 元数据目录
-        if let Some(value) = env_vars.get("CODEX_KNOWLEDGE_METADATA_DIR") {
+        if let Ok(value) = env::var("CODEX_KNOWLEDGE_METADATA_DIR") {
             config.knowledge.metadata_dir = PathBuf::from(value);
         }
 
         // 排除的文件模式
-        if let Some(value) = env_vars.get("CODEX_KNOWLEDGE_EXCLUDE_PATTERNS") {
+        if let Ok(value) = env::var("CODEX_KNOWLEDGE_EXCLUDE_PATTERNS") {
             config.knowledge.exclude_patterns =
                 value.split(',').map(|s| s.trim().to_string()).collect();
         }
 
         // 支持的文件类型
-        if let Some(value) = env_vars.get("CODEX_KNOWLEDGE_SUPPORTED_EXTENSIONS") {
+        if let Ok(value) = env::var("CODEX_KNOWLEDGE_SUPPORTED_EXTENSIONS") {
             config.knowledge.supported_extensions =
                 value.split(',').map(|s| s.trim().to_string()).collect();
         }
@@ -368,6 +364,8 @@ impl ConfigLoader {
                     .iter()
                     .map(|s| s.to_string())
                     .collect(),
+                remote_depth: Some(2),
+                remote_dir: None,
             },
         }
     }

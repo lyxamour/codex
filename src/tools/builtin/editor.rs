@@ -1,5 +1,5 @@
 //! 文件编辑工具
-//! 
+//!
 //! 提供文件内容编辑操作
 
 use crate::error::AppResult;
@@ -21,8 +21,7 @@ pub fn edit_file(
     pattern: Option<&str>,
     content: Option<&str>,
     line_number: Option<u32>,
-) -> AppResult<()>
-{
+) -> AppResult<()> {
     // TODO: 主人~ 这里需要实现文件编辑逻辑
     // 提示：1. 读取文件内容 2. 根据操作类型修改内容 3. 写入修改后的内容
     Ok(())

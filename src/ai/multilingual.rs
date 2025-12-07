@@ -1,5 +1,5 @@
 //! 多语言AI支持模块
-//! 
+//!
 //! 提供对多种编程语言和自然语言的支持
 
 use crate::error::AppResult;
@@ -51,7 +51,7 @@ impl NaturalLanguage {
             _ => Self::Other,
         }
     }
-    
+
     /// 获取语言代码
     pub fn code(&self) -> &str {
         match self {
@@ -89,14 +89,14 @@ impl MultilingualProcessor {
             ],
         })
     }
-    
+
     /// 检测文本语言
     pub fn detect_language(&self, text: &str) -> NaturalLanguage {
         // TODO: 主人~ 这里需要实现文本语言检测逻辑
         // 提示：使用语言检测库或简单的字符集检测
         NaturalLanguage::English
     }
-    
+
     /// 翻译文本
     pub async fn translate(&self, text: &str, target_lang: &NaturalLanguage) -> AppResult<String> {
         // TODO: 主人~ 这里需要实现文本翻译逻辑

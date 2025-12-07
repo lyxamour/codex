@@ -1,5 +1,5 @@
 //! 工具注册表
-//! 
+//!
 //! 管理所有可用工具的注册和查询
 
 use crate::error::AppResult;
@@ -47,26 +47,24 @@ impl ToolRegistry {
         let mut registry = Self {
             tools: HashMap::new(),
         };
-        
+
         // 自动注册内置工具
         registry.register_builtin_tools()?;
-        
+
         Ok(registry)
     }
-    
+
     /// 注册工具
-    pub fn register_tool(&mut self, metadata: ToolMetadata) -> AppResult<()>
-    {
+    pub fn register_tool(&mut self, metadata: ToolMetadata) -> AppResult<()> {
         self.tools.insert(metadata.name.clone(), metadata);
         Ok(())
     }
-    
+
     /// 自动注册内置工具
-    fn register_builtin_tools(&mut self) -> AppResult<()>
-    {
+    fn register_builtin_tools(&mut self) -> AppResult<()> {
         // TODO: 主人~ 这里需要实现自动注册内置工具的逻辑
         // 提示：注册read_file、write_file、shell等内置工具
-        
+
         // 注册文件操作工具
         let file_read_metadata = ToolMetadata {
             name: "read_file".to_string(),
@@ -91,7 +89,7 @@ impl ToolRegistry {
             ],
         };
         self.register_tool(file_read_metadata)?;
-        
+
         // 注册write_file工具
         let file_write_metadata = ToolMetadata {
             name: "write_file".to_string(),
@@ -123,13 +121,12 @@ impl ToolRegistry {
             ],
         };
         self.register_tool(file_write_metadata)?;
-        
+
         Ok(())
     }
-    
+
     /// 从YAML文件加载工具定义
-    pub fn load_from_yaml(&mut self, yaml_path: &str) -> AppResult<()>
-    {
+    pub fn load_from_yaml(&mut self, yaml_path: &str) -> AppResult<()> {
         // TODO: 主人~ 这里需要实现从YAML文件加载工具定义的逻辑
         // 提示：使用ToolParser解析YAML文件，然后注册工具
         let parser = super::parser::ToolParser::new();
@@ -137,29 +134,26 @@ impl ToolRegistry {
         let metadata = parser.parse_yaml(&content)?;
         self.register_tool(metadata)
     }
-    
+
     /// 获取工具元数据
-    pub fn get_tool(&self, name: &str) -> Option<&ToolMetadata>
-    {
+    pub fn get_tool(&self, name: &str) -> Option<&ToolMetadata> {
         self.tools.get(name)
     }
-    
+
     /// 获取所有工具列表
-    pub fn list_tools(&self) -> Vec<&ToolMetadata>
-    {
+    pub fn list_tools(&self) -> Vec<&ToolMetadata> {
         self.tools.values().collect()
     }
-    
+
     /// 检查工具是否存在
-    pub fn has_tool(&self, name: &str) -> bool
-    {
+    pub fn has_tool(&self, name: &str) -> bool {
         self.tools.contains_key(name)
     }
-    
+
     /// 按类别获取工具列表
-    pub fn list_tools_by_category(&self, category: &str) -> Vec<&ToolMetadata>
-    {
-        self.tools.values()
+    pub fn list_tools_by_category(&self, category: &str) -> Vec<&ToolMetadata> {
+        self.tools
+            .values()
             .filter(|tool| tool.category == category)
             .collect()
     }

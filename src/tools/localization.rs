@@ -1,5 +1,5 @@
 //! 工具多语言支持
-//! 
+//!
 //! 提供工具的多语言支持和本地化
 
 use crate::error::AppResult;
@@ -20,12 +20,12 @@ impl ToolLocalization {
             resources: std::collections::HashMap::new(),
         })
     }
-    
+
     /// 设置当前语言
     pub fn set_lang(&mut self, lang: &str) {
         self.current_lang = lang.to_string();
     }
-    
+
     /// 获取本地化字符串
     pub fn get_string(&self, key: &str) -> String {
         if let Some(lang_resources) = self.resources.get(&self.current_lang) {

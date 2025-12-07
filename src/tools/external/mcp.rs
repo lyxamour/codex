@@ -1,5 +1,5 @@
 //! MCP工具适配器
-//! 
+//!
 //! 集成外部MCP工具到工具系统中
 
 use crate::error::AppResult;
@@ -24,14 +24,15 @@ pub struct MCPAdapter {
 impl MCPAdapter {
     /// 创建新的MCP工具适配器实例
     pub fn new(config: MCPConfig) -> AppResult<Self> {
-        Ok(Self {
-            config,
-        })
+        Ok(Self { config })
     }
-    
+
     /// 调用MCP工具
-    pub async fn call(&self, tool_name: &str, params: serde_json::Value) -> AppResult<serde_json::Value>
-    {
+    pub async fn call(
+        &self,
+        tool_name: &str,
+        params: serde_json::Value,
+    ) -> AppResult<serde_json::Value> {
         // TODO: 主人~ 这里需要实现MCP工具调用逻辑
         // 提示：使用reqwest库发送HTTP请求到MCP服务器
         Ok(serde_json::Value::Null)

@@ -1,5 +1,5 @@
 //! 网页抓取模块
-//! 
+//!
 //! 抓取远程网页内容，构建远程知识库
 
 use crate::error::AppResult;
@@ -35,10 +35,9 @@ impl WebScraper {
             timeout: 30,
         })
     }
-    
+
     /// 抓取单个网页
-    pub async fn scrape_url(&self, url: &str) -> AppResult<ScrapedContent>
-    {
+    pub async fn scrape_url(&self, url: &str) -> AppResult<ScrapedContent> {
         // TODO: 主人~ 这里需要实现单个网页抓取逻辑
         // 提示：使用reqwest库发送HTTP请求，使用scraper库解析HTML内容
         Ok(ScrapedContent {
@@ -48,10 +47,9 @@ impl WebScraper {
             scraped_at: chrono::Utc::now(),
         })
     }
-    
+
     /// 递归抓取网页
-    pub async fn scrape_recursive(&self, url: &str, depth: u32) -> AppResult<Vec<ScrapedContent>>
-    {
+    pub async fn scrape_recursive(&self, url: &str, depth: u32) -> AppResult<Vec<ScrapedContent>> {
         // TODO: 主人~ 这里需要实现递归抓取逻辑
         // 提示：1. 抓取当前网页 2. 提取链接 3. 递归抓取子链接，直到达到最大深度
         Ok(Vec::new())

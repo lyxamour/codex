@@ -1,5 +1,5 @@
 //! 系统信息工具
-//! 
+//!
 //! 获取系统信息，如OS、内存、磁盘等
 
 use crate::error::AppResult;
@@ -19,8 +19,7 @@ pub enum SystemInfoType {
 }
 
 /// 获取系统信息
-pub fn get_system_info(info_type: SystemInfoType) -> AppResult<String>
-{
+pub fn get_system_info(info_type: SystemInfoType) -> AppResult<String> {
     // TODO: 主人~ 这里需要实现系统信息获取逻辑
     // 提示：使用sysinfo库或std::env::consts模块获取系统信息
     Ok("系统信息".to_string())

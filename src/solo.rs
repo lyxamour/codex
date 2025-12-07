@@ -2,7 +2,7 @@ use crate::ai::AIClient;
 use crate::task::{TaskManager, TaskStatus};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::sync::Arc;
+use std::path::Path;
 
 /// Solo mode step structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +50,6 @@ pub struct SoloTask {
 }
 
 /// Solo agent for autonomous task execution
-#[derive(Clone)]
 pub struct SoloAgent {
     ai_client: AIClient,
     task_manager: TaskManager,
@@ -58,16 +57,21 @@ pub struct SoloAgent {
 
 impl Default for SoloAgent {
     fn default() -> Self {
-        Self::new().expect("Failed to create solo agent")
+        // 为了保持 Default trait 的同步性，我们使用阻塞方式初始化
+        // 这在某些情况下可能会导致 "Cannot start a runtime from within a runtime" 错误
+        // 建议在异步上下文中直接使用 SoloAgent::new().await
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { Self::new().await.expect("Failed to create solo agent") })
     }
 }
 
 impl SoloAgent {
     /// Create a new solo agent
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub async fn new() -> Result<Self, Box<dyn Error>> {
         Ok(Self {
-            ai_client: AIClient::new()?,
-            task_manager: TaskManager::new()?,
+            ai_client: AIClient::new().await?, // 调用异步方法创建AI客户端
+            task_manager: TaskManager::new("/Users/luoxin/persons/lyxamour/codex/templates")?,
         })
     }
 
@@ -211,6 +215,106 @@ impl SoloAgent {
         Ok(response.content().to_string())
     }
 
+    /// Analyze the codebase to generate autonomous tasks
+    pub async fn analyze_codebase(&self, path: &str) -> Result<String, Box<dyn Error>> {
+        println!("Analyzing codebase at: {}", path);
+
+        // Check if path exists
+        let path = Path::new(path);
+        if !path.exists() {
+            return Err(format!("Path does not exist: {}", path.display()).into());
+        }
+
+        // Get directory structure
+        let mut dir_structure = String::new();
+        self.get_directory_structure(path, "", &mut dir_structure)?;
+
+        // Analyze codebase with AI
+        let prompt = format!(
+            "Analyze the following codebase structure and provide insights, \
+            including potential improvements, bugs, or missing features. \
+            Also suggest specific tasks that could be automated. \
+            Return ONLY the analysis and tasks, no additional explanation.\n\nCodebase Structure:\n{}",
+            dir_structure
+        );
+
+        let response = self.ai_client.generate_response(&prompt, None).await?;
+        Ok(response.content().to_string())
+    }
+
+    /// Helper function to get directory structure
+    fn get_directory_structure(
+        &self,
+        path: &Path,
+        prefix: &str,
+        output: &mut String,
+    ) -> Result<(), Box<dyn Error>> {
+        // Skip certain directories
+        let skip_dirs = ["target", ".git", "node_modules", "venv", ".venv"];
+        let file_name = path.file_name().unwrap_or_default().to_str().unwrap_or("");
+
+        if path.is_dir() {
+            // Skip certain directories
+            if skip_dirs.contains(&file_name) {
+                return Ok(());
+            }
+
+            // Add directory to output
+            output.push_str(&format!("{}📁 {}/\n", prefix, file_name));
+
+            // Recursively process files and subdirectories
+            let mut entries = std::fs::read_dir(path)?
+                .filter_map(|e| e.ok())
+                .collect::<Vec<_>>();
+
+            // Sort entries: directories first, then files
+            entries.sort_by(|a, b| {
+                let a_is_dir = a.file_type().is_ok() && a.file_type().unwrap().is_dir();
+                let b_is_dir = b.file_type().is_ok() && b.file_type().unwrap().is_dir();
+
+                if a_is_dir == b_is_dir {
+                    a.path().file_name().cmp(&b.path().file_name())
+                } else if a_is_dir {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Greater
+                }
+            });
+
+            let last_index = entries.len() - 1;
+
+            for (i, entry) in entries.into_iter().enumerate() {
+                // Determine next prefix for recursion
+                let next_prefix = if i == last_index {
+                    format!("{}    ", prefix)
+                } else {
+                    format!("{}│   ", prefix)
+                };
+
+                // Recursively process entry
+                self.get_directory_structure(&entry.path(), &next_prefix, output)?;
+            }
+        } else {
+            // Add file to output (only for certain file types)
+            let file_ext = path.extension().unwrap_or_default().to_str().unwrap_or("");
+            let code_extensions = [
+                "rs", "py", "js", "ts", "jsx", "tsx", "go", "java", "cpp", "c", "h", "html", "css",
+                "json", "yaml", "yml", "toml",
+            ];
+
+            if code_extensions.contains(&file_ext) {
+                output.push_str(&format!(
+                    "{}📄 {} ({} bytes)\n",
+                    prefix,
+                    file_name,
+                    std::fs::metadata(path)?.len()
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
     /// Execute a task with real-world actions (experimental)
     pub async fn execute_with_actions(
         &mut self,
@@ -229,7 +333,7 @@ impl SoloAgent {
         // Create a task in the task manager
         let task = self
             .task_manager
-            .create(format!("Solo Mode: {}", task), "high".to_string())?;
+            .create_task(format!("Solo Mode: {}", task), Some("high".to_string()))?;
 
         // Execute steps with real-world actions
         for (i, step) in steps.into_iter().enumerate() {
@@ -252,8 +356,9 @@ impl SoloAgent {
         }
 
         // Update task status to done
-        self.task_manager
-            .update(&task.id, None, Some("done".to_string()), None)?;
+        let mut updated_task = task.clone();
+        updated_task.status = TaskStatus::Completed;
+        self.task_manager.update_task(&updated_task)?;
 
         // Synthesize final result
         let final_result = format!(
@@ -290,7 +395,7 @@ impl SoloAgent {
         // 1. 为每个任务步骤创建独立的AI客户端实例
         // 2. 使用tokio::spawn并行执行每个步骤
         // 3. 收集所有结果并合成最终结果
-        
+
         // 目前先使用顺序执行，确保代码可以编译通过
         for step in steps {
             let result = self.execute_step(&step.description).await?;
@@ -301,6 +406,52 @@ impl SoloAgent {
         let final_result = self.synthesize_result(task, &step_results).await?;
 
         Ok(final_result)
+    }
+
+    /// Generate test cases for a given file
+    pub async fn generate_tests(&self, file_path: &str) -> Result<String, Box<dyn Error>> {
+        println!("Generating tests for file: {}", file_path);
+
+        // Read file content
+        let content = std::fs::read_to_string(file_path)?;
+
+        // Generate tests with AI
+        let prompt = format!(
+            "Generate comprehensive test cases for the following code. \
+            Return ONLY the test code, no additional explanation.\n\nFile: {}\n\nCode:\n{}",
+            file_path, content
+        );
+
+        let response = self.ai_client.generate_response(&prompt, None).await?;
+        Ok(response.content().to_string())
+    }
+
+    /// Apply code changes to a file
+    pub async fn apply_code_changes(
+        &self,
+        file_path: &str,
+        changes: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        println!("Applying code changes to file: {}", file_path);
+
+        // Read current file content
+        let current_content = std::fs::read_to_string(file_path)?;
+
+        // Generate updated content with AI
+        let prompt = format!(
+            "Apply the following changes to the given code. \
+            Return ONLY the updated code, no additional explanation.\n\nCurrent Code:\n{}\n\nChanges to Apply:\n{}",
+            current_content,
+            changes
+        );
+
+        let response = self.ai_client.generate_response(&prompt, None).await?;
+        let updated_content = response.content().to_string();
+
+        // Write updated content back to file
+        std::fs::write(file_path, updated_content.clone())?;
+
+        Ok(updated_content)
     }
 }
 

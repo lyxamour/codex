@@ -1,10 +1,10 @@
 //! 错误处理模块
-//! 
+//!
 //! 定义应用程序的错误类型和处理机制
 
-use thiserror::Error;
-use std::fmt::Debug;
 use std::any::Any;
+use std::fmt::Debug;
+use thiserror::Error;
 
 /// 应用程序错误类型
 #[derive(Error, Debug)]
@@ -15,7 +15,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 可选的源错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 文件系统错误
@@ -26,7 +27,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 底层IO错误
-        #[source] source: std::io::Error,
+        #[source]
+        source: std::io::Error,
     },
 
     /// 序列化/反序列化错误
@@ -37,7 +39,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 底层序列化错误
-        #[source] source: serde_yaml::Error,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     /// AI平台错误
@@ -50,7 +53,8 @@ pub enum AppError {
         /// HTTP状态码（如果适用）
         status_code: Option<u16>,
         /// 底层网络错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 工具执行错误
@@ -65,7 +69,8 @@ pub enum AppError {
         /// 退出码（如果适用）
         exit_code: Option<i32>,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 知识库错误
@@ -78,7 +83,8 @@ pub enum AppError {
         /// 索引路径
         index_path: Option<std::path::PathBuf>,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 网页抓取错误
@@ -91,7 +97,8 @@ pub enum AppError {
         /// HTTP状态码
         status_code: Option<u16>,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 命令执行错误
@@ -106,7 +113,8 @@ pub enum AppError {
         /// 工作目录
         cwd: Option<std::path::PathBuf>,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// UI错误
@@ -117,7 +125,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 网络错误
@@ -130,7 +139,8 @@ pub enum AppError {
         /// HTTP状态码
         status_code: Option<u16>,
         /// 底层网络错误
-        #[source] source: reqwest::Error,
+        #[source]
+        source: reqwest::Error,
     },
 
     /// 目录遍历错误
@@ -141,7 +151,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 底层遍历错误
-        #[source] source: walkdir::Error,
+        #[source]
+        source: walkdir::Error,
     },
 
     /// 子代理错误
@@ -152,7 +163,8 @@ pub enum AppError {
         /// 错误描述
         description: String,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 钩子错误
@@ -165,7 +177,8 @@ pub enum AppError {
         /// 事件名称
         event: Option<String>,
         /// 底层错误
-        #[source] source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     /// 其他错误
@@ -199,7 +212,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建AI平台错误
     pub fn ai(description: &str) -> Self {
         AppError::AI {
@@ -209,7 +222,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建工具执行错误
     pub fn tool(description: &str) -> Self {
         AppError::Tool {
@@ -220,7 +233,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建命令执行错误
     pub fn command(description: &str) -> Self {
         AppError::Command {
@@ -231,7 +244,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建知识库错误
     pub fn knowledge(description: &str) -> Self {
         AppError::Knowledge {
@@ -241,7 +254,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建网页抓取错误
     pub fn scraper(description: &str) -> Self {
         AppError::Scraper {
@@ -251,7 +264,7 @@ impl AppError {
             source: None,
         }
     }
-    
+
     /// 创建UI错误
     pub fn ui(description: &str) -> Self {
         AppError::UI {
@@ -279,7 +292,18 @@ impl From<serde_yaml::Error> for AppError {
         AppError::Serialization {
             path: None,
             description: err.to_string(),
-            source: err,
+            source: Box::new(err),
+        }
+    }
+}
+
+/// 从serde_json::Error转换为AppError
+impl From<serde_json::Error> for AppError {
+    fn from(err: serde_json::Error) -> Self {
+        AppError::Serialization {
+            path: None,
+            description: err.to_string(),
+            source: Box::new(err),
         }
     }
 }
@@ -287,8 +311,11 @@ impl From<serde_yaml::Error> for AppError {
 /// 从walkdir::Error转换为AppError
 impl From<walkdir::Error> for AppError {
     fn from(err: walkdir::Error) -> Self {
-        let path = err.path().unwrap_or(&std::path::PathBuf::new()).to_path_buf();
-        
+        let path = err
+            .path()
+            .unwrap_or(&std::path::PathBuf::new())
+            .to_path_buf();
+
         AppError::WalkDir {
             path,
             description: err.to_string(),
@@ -302,7 +329,7 @@ impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
         let url = err.url().map(|u| u.to_string());
         let status_code = err.status().map(|s| s.as_u16());
-        
+
         AppError::Network {
             url,
             description: err.to_string(),
@@ -323,10 +350,10 @@ pub fn init_error_reporting() {
 pub trait ResultExt<T, E>: Sized {
     /// 添加配置错误上下文
     fn with_config_context(self, description: &str) -> Result<T, AppError>;
-    
+
     /// 添加文件系统错误上下文
     fn with_file_context(self, path: &std::path::Path) -> Result<T, AppError>;
-    
+
     /// 添加AI平台错误上下文
     fn with_ai_context(self, platform: &str) -> Result<T, AppError>;
 }
@@ -342,7 +369,7 @@ impl<T, E: Into<AppError>> ResultExt<T, E> for Result<T, E> {
             }
         })
     }
-    
+
     fn with_file_context(self, path: &std::path::Path) -> Result<T, AppError> {
         self.map_err(|e| {
             let source: AppError = e.into();
@@ -352,21 +379,30 @@ impl<T, E: Into<AppError>> ResultExt<T, E> for Result<T, E> {
                     description: source.to_string(),
                     source,
                 },
-                AppError::Serialization { source, .. } => AppError::Serialization {
+                AppError::Serialization {
+                    description,
+                    source,
+                    ..
+                } => AppError::Serialization {
                     path: Some(path.to_path_buf()),
-                    description: source.to_string(),
+                    description,
                     source,
                 },
                 _ => AppError::Other(format!("文件 '{}': {}", path.display(), source)),
             }
         })
     }
-    
+
     fn with_ai_context(self, platform: &str) -> Result<T, AppError> {
         self.map_err(|e| {
             let source: AppError = e.into();
             match source {
-                AppError::Network { source, url, status_code, .. } => AppError::AI {
+                AppError::Network {
+                    source,
+                    url,
+                    status_code,
+                    ..
+                } => AppError::AI {
                     platform: platform.to_string(),
                     description: source.to_string(),
                     status_code,

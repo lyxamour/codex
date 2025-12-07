@@ -1,8 +1,11 @@
 //! 交互式配置向导
-//! 
+//!
 //! 提供基于ratatui的交互式配置向导，用于首次启动时引导用户配置应用
 
-use crossterm::{event::{self, Event, KeyCode, KeyEvent, KeyModifiers}, execute, terminal};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    execute, terminal,
+};
 use ratatui::{prelude::*, widgets::*};
 use std::error::Error;
 use std::io::{stdout, Stdout};
@@ -41,7 +44,7 @@ impl WizardApp {
     fn new() -> Self {
         let config_loader = ConfigLoader::new();
         let default_config = config_loader.get_default_config();
-        
+
         Self {
             step: WizardStep::Welcome,
             config: default_config,
@@ -109,10 +112,10 @@ fn render_wizard(f: &mut Frame, app: &WizardApp) {
 
     // 渲染标题
     render_title(f, layout[0], app);
-    
+
     // 渲染内容
     render_content(f, layout[1], app);
-    
+
     // 渲染状态/输入
     render_input(f, layout[2], app);
 }
@@ -127,12 +130,16 @@ fn render_title(f: &mut Frame, area: Rect, app: &WizardApp) {
         WizardStep::Summary => "Configuration Summary",
         WizardStep::Complete => "Configuration Complete",
     };
-    
+
     let title_widget = Paragraph::new(title)
-        .style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
-    
+
     f.render_widget(title_widget, area);
 }
 
@@ -159,19 +166,19 @@ fn render_welcome(f: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from("Press Enter to continue..."),
     ];
-    
+
     let welcome_widget = Paragraph::new(welcome_text)
         .style(Style::default().fg(Color::Gray))
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
-    
+
     f.render_widget(welcome_widget, area);
 }
 
 /// 渲染语言选择页面
 fn render_language_selection(f: &mut Frame, area: Rect, app: &WizardApp) {
     let languages = vec!["English", "中文"];
-    
+
     let items = languages
         .iter()
         .enumerate()
@@ -184,19 +191,24 @@ fn render_language_selection(f: &mut Frame, area: Rect, app: &WizardApp) {
             ListItem::new(Span::styled(format!("  {}", lang), style))
         })
         .collect::<Vec<_>>();
-    
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Select Interface Language"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Select Interface Language"),
+        )
         .highlight_style(Style::default().bg(Color::Blue).fg(Color::White))
         .highlight_symbol("> ");
-    
+
     f.render_widget(list, area);
 }
 
 /// 渲染AI设置页面
 fn render_ai_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
     let items = vec![
-        format!("OpenAI API Key: {}", 
+        format!(
+            "OpenAI API Key: {}",
             if let Some(openai) = &app.config.ai.openai {
                 if openai.api_key.is_empty() {
                     "[Enter API Key]"
@@ -207,7 +219,8 @@ fn render_ai_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
                 "[Not configured]"
             }
         ),
-        format!("Default Model: {}", 
+        format!(
+            "Default Model: {}",
             if let Some(openai) = &app.config.ai.openai {
                 &openai.default_model
             } else {
@@ -215,7 +228,7 @@ fn render_ai_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
             }
         ),
     ];
-    
+
     let items = items
         .iter()
         .enumerate()
@@ -228,22 +241,25 @@ fn render_ai_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
             ListItem::new(Span::styled(format!("  {}", item), style))
         })
         .collect::<Vec<_>>();
-    
+
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("AI Settings"))
         .highlight_style(Style::default().bg(Color::Blue).fg(Color::White))
         .highlight_symbol("> ");
-    
+
     f.render_widget(list, area);
 }
 
 /// 渲染UI设置页面
 fn render_ui_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
     let items = vec![
-        format!("Colored Output: {}", if app.config.ui.colored { "Yes" } else { "No" }),
+        format!(
+            "Colored Output: {}",
+            if app.config.ui.colored { "Yes" } else { "No" }
+        ),
         format!("Theme: {}", &app.config.ui.theme),
     ];
-    
+
     let items = items
         .iter()
         .enumerate()
@@ -256,12 +272,12 @@ fn render_ui_settings(f: &mut Frame, area: Rect, app: &WizardApp) {
             ListItem::new(Span::styled(format!("  {}", item), style))
         })
         .collect::<Vec<_>>();
-    
+
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("UI Settings"))
         .highlight_style(Style::default().bg(Color::Blue).fg(Color::White))
         .highlight_symbol("> ");
-    
+
     f.render_widget(list, area);
 }
 
@@ -270,30 +286,51 @@ fn render_summary(f: &mut Frame, area: Rect, app: &WizardApp) {
     let summary = vec![
         Line::from("Configuration Summary:"),
         Line::from(""),
-        Line::from(format!("• Language: {}", 
-            if app.config.app.language == "zh" { "中文" } else { "English" }
+        Line::from(format!(
+            "• Language: {}",
+            if app.config.app.language == "zh" {
+                "中文"
+            } else {
+                "English"
+            }
         )),
-        Line::from(format!("• AI Platform: {}", &app.config.ai.default_platform)),
-        Line::from(format!("• OpenAI API Key: {}", 
+        Line::from(format!(
+            "• AI Platform: {}",
+            &app.config.ai.default_platform
+        )),
+        Line::from(format!(
+            "• OpenAI API Key: {}",
             if let Some(openai) = &app.config.ai.openai {
-                if openai.api_key.is_empty() { "Not configured" } else { "Configured" }
-            } else { "Not configured" }
+                if openai.api_key.is_empty() {
+                    "Not configured"
+                } else {
+                    "Configured"
+                }
+            } else {
+                "Not configured"
+            }
         )),
-        Line::from(format!("• Default Model: {}", 
+        Line::from(format!(
+            "• Default Model: {}",
             if let Some(openai) = &app.config.ai.openai {
                 &openai.default_model
-            } else { "gpt-4o" }
+            } else {
+                "gpt-4o"
+            }
         )),
-        Line::from(format!("• Colored Output: {}", if app.config.ui.colored { "Yes" } else { "No" })),
+        Line::from(format!(
+            "• Colored Output: {}",
+            if app.config.ui.colored { "Yes" } else { "No" }
+        )),
         Line::from(format!("• Theme: {}", &app.config.ui.theme)),
         Line::from(""),
         Line::from("Press Enter to save configuration..."),
     ];
-    
+
     let summary_widget = Paragraph::new(summary)
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::ALL).title("Summary"));
-    
+
     f.render_widget(summary_widget, area);
 }
 
@@ -309,36 +346,42 @@ fn render_complete(f: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from("Press Enter to start Codex..."),
     ];
-    
+
     let complete_widget = Paragraph::new(complete_text)
         .style(Style::default().fg(Color::Green))
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
-    
+
     f.render_widget(complete_widget, area);
 }
 
 /// 渲染输入区域
 fn render_input(f: &mut Frame, area: Rect, app: &WizardApp) {
     let mut content = vec![];
-    
+
     match &app.step {
         WizardStep::Welcome => {
             content.push(Line::from("Use Enter to continue, Esc to exit"));
         }
         WizardStep::LanguageSelection => {
-            content.push(Line::from("Use ↑/↓ to navigate, Enter to select, Esc to exit"));
+            content.push(Line::from(
+                "Use ↑/↓ to navigate, Enter to select, Esc to exit",
+            ));
         }
         WizardStep::AISettings => {
             if app.is_input_mode {
                 content.push(Line::from(format!("Enter value: {}", &app.input)));
                 content.push(Line::from("Press Enter to save, Esc to cancel"));
             } else {
-                content.push(Line::from("Use ↑/↓ to navigate, Enter to edit, Esc to exit"));
+                content.push(Line::from(
+                    "Use ↑/↓ to navigate, Enter to edit, Esc to exit",
+                ));
             }
         }
         WizardStep::UISettings => {
-            content.push(Line::from("Use ↑/↓ to navigate, Enter to toggle, Esc to exit"));
+            content.push(Line::from(
+                "Use ↑/↓ to navigate, Enter to toggle, Esc to exit",
+            ));
         }
         WizardStep::Summary => {
             content.push(Line::from("Press Enter to save, Esc to exit"));
@@ -347,18 +390,18 @@ fn render_input(f: &mut Frame, area: Rect, app: &WizardApp) {
             content.push(Line::from("Press Enter to continue, Esc to exit"));
         }
     }
-    
+
     let input_widget = Paragraph::new(content)
         .style(Style::default().fg(Color::Yellow))
         .block(Block::default().borders(Borders::ALL));
-    
+
     f.render_widget(input_widget, area);
-    
+
     // 设置光标位置
     if app.is_input_mode {
         f.set_cursor(
             area.x + 14 + app.input.len() as u16, // 14 is the length of "Enter value: "
-            area.y + 1
+            area.y + 1,
         );
     }
 }
@@ -381,23 +424,26 @@ fn handle_wizard_events(app: &mut WizardApp) -> Result<bool, Box<dyn Error>> {
             }
         }
     }
-    
+
     Ok(true)
 }
 
 /// 处理向导按键事件
-fn handle_wizard_key_event(app: &mut WizardApp, key_event: KeyEvent) -> Result<bool, Box<dyn Error>> {
+fn handle_wizard_key_event(
+    app: &mut WizardApp,
+    key_event: KeyEvent,
+) -> Result<bool, Box<dyn Error>> {
     match key_event.code {
         // 退出向导
         KeyCode::Esc => {
             return Ok(false);
         }
-        
+
         // 输入模式下的处理
         _ if app.is_input_mode => {
             return handle_input_mode_key_event(app, key_event);
         }
-        
+
         // 普通模式下的处理
         KeyCode::Enter => {
             handle_enter_key(app);
@@ -410,24 +456,27 @@ fn handle_wizard_key_event(app: &mut WizardApp, key_event: KeyEvent) -> Result<b
         KeyCode::Down => {
             let max_selection = match &app.step {
                 WizardStep::LanguageSelection => 1, // English, 中文
-                WizardStep::AISettings => 1, // API Key, Model
-                WizardStep::UISettings => 1, // Colored, Theme
+                WizardStep::AISettings => 1,        // API Key, Model
+                WizardStep::UISettings => 1,        // Colored, Theme
                 _ => 0,
             };
-            
+
             if app.selection < max_selection {
                 app.selection += 1;
             }
         }
-        
+
         _ => { /* 忽略其他按键 */ }
     }
-    
+
     Ok(true)
 }
 
 /// 处理输入模式下的按键事件
-fn handle_input_mode_key_event(app: &mut WizardApp, key_event: KeyEvent) -> Result<bool, Box<dyn Error>> {
+fn handle_input_mode_key_event(
+    app: &mut WizardApp,
+    key_event: KeyEvent,
+) -> Result<bool, Box<dyn Error>> {
     match key_event.code {
         // 保存输入
         KeyCode::Enter => {
@@ -448,10 +497,10 @@ fn handle_input_mode_key_event(app: &mut WizardApp, key_event: KeyEvent) -> Resu
         KeyCode::Char(c) => {
             app.input.push(c);
         }
-        
+
         _ => { /* 忽略其他按键 */ }
     }
-    
+
     Ok(true)
 }
 
@@ -467,7 +516,8 @@ fn handle_enter_key(app: &mut WizardApp) {
                 0 => "en",
                 1 => "zh",
                 _ => "en",
-            }.to_string();
+            }
+            .to_string();
             app.step = WizardStep::AISettings;
         }
         WizardStep::AISettings => {
@@ -496,7 +546,10 @@ fn handle_enter_key(app: &mut WizardApp) {
                 1 => {
                     // 切换主题
                     let themes = vec!["default", "dark", "light"];
-                    let current_index = themes.iter().position(|t| t == &app.config.ui.theme).unwrap_or(0);
+                    let current_index = themes
+                        .iter()
+                        .position(|t| t == &app.config.ui.theme)
+                        .unwrap_or(0);
                     let next_index = (current_index + 1) % themes.len();
                     app.config.ui.theme = themes[next_index].to_string();
                 }
