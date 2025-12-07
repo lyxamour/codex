@@ -58,12 +58,45 @@ update:
 cross-compile: 
 	# Linux x86_64
 	CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu $(CARGO) build --release
-	# Windows x86_64
+	# Linux aarch64
+	CARGO_BUILD_TARGET=aarch64-unknown-linux-gnu $(CARGO) build --release
+	# Windows x86_64 (MSVC)
+	CARGO_BUILD_TARGET=x86_64-pc-windows-msvc $(CARGO) build --release
+	# Windows x86_64 (GNU)
 	CARGO_BUILD_TARGET=x86_64-pc-windows-gnu $(CARGO) build --release
 	# macOS x86_64
 	CARGO_BUILD_TARGET=x86_64-apple-darwin $(CARGO) build --release
 	# macOS aarch64
 	CARGO_BUILD_TARGET=aarch64-apple-darwin $(CARGO) build --release
+
+# Cross compile for a specific target
+cross-compile-target: 
+	@if [ -z "$(TARGET)" ]; then \
+		echo "Error: Please specify TARGET, e.g., make cross-compile-target TARGET=x86_64-unknown-linux-gnu"; \
+		exit 1; \
+	fi
+	CARGO_BUILD_TARGET=$(TARGET) $(CARGO) build --release
+
+# Build for all supported targets
+build-all: 
+	# Build for current platform
+	$(CARGO) build --release
+	# Cross compile for other platforms
+	$(MAKE) cross-compile
+
+# List all build targets
+list-targets: 
+	@echo "Supported build targets:"
+	@echo "  - x86_64-unknown-linux-gnu (Linux x86_64)"
+	@echo "  - aarch64-unknown-linux-gnu (Linux ARM64)"
+	@echo "  - x86_64-pc-windows-msvc (Windows x86_64 MSVC)"
+	@echo "  - x86_64-pc-windows-gnu (Windows x86_64 GNU)"
+	@echo "  - x86_64-apple-darwin (macOS x86_64)"
+	@echo "  - aarch64-apple-darwin (macOS ARM64)"
+
+# Clean all build artifacts including cross-compiled targets
+clean-all: 
+	$(CARGO) clean
 
 # Install the binary to ~/codex/bin
 install: release

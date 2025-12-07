@@ -5,6 +5,7 @@
 // 公共模块导出
 pub mod ai;
 pub mod ai_response_quality;
+pub mod auto_update;
 pub mod cli;
 pub mod code;
 pub mod code_understanding;

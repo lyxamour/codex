@@ -1,0 +1,30 @@
+Source: codex
+Section: devel
+Priority: optional
+Maintainer: Lyxamour <contact@lyxamour.com>
+Build-Depends: debhelper (>= 13),
+               cargo,
+               rustc,
+               libssl-dev,
+               libcurl4-openssl-dev,
+               pkg-config
+Standards-Version: 4.6.2
+Homepage: https://github.com/lyxamour/codex
+Vcs-Git: https://github.com/lyxamour/codex.git
+Vcs-Browser: https://github.com/lyxamour/codex
+Rules-Requires-Root: no
+
+Package: codex
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: CLI-based AI programming tool with local knowledge base
+ Codex is a CLI-based AI programming tool that provides:
+  - Local code knowledge base with Tantivy search engine
+  - Remote web scraping capabilities
+  - Multi-AI platform support (OpenAI, Claude, Ollama)
+  - Code generation and explanation
+  - Interactive chat interface
+  - Task management system
+ .
+ Codex helps developers with code understanding, generation, and optimization,
+ leveraging both local knowledge and remote AI capabilities.
