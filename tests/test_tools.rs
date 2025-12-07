@@ -234,3 +234,154 @@ execution:
     assert_eq!(loaded_tool.name, "yaml_test_tool", "加载的工具名称不正确");
     assert_eq!(loaded_tool.category, "yaml", "加载的工具类别不正确");
 }
+
+#[tokio::test]
+async fn test_tool_executor_creation() {
+    // 测试工具执行器的创建
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    
+    // 验证创建过程没有出错
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    assert!(true, "工具执行器创建成功");
+}
+
+#[tokio::test]
+async fn test_tool_executor_read_file() {
+    // 测试执行read_file工具
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    
+    // 创建临时文件用于测试
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let temp_path = temp_file.path().to_str().unwrap();
+    fs::write(temp_path, "Test file content").unwrap();
+    
+    // 执行read_file工具
+    let params = serde_json::json!({"path": temp_path});
+    let result = executor.execute("read_file", params).await;
+    assert!(result.is_ok(), "执行read_file工具失败");
+    
+    let tool_result = result.unwrap();
+    match tool_result {
+        codex::tools::executor::ToolResult::Success(content) => {
+            assert_eq!(content, "Test file content", "读取的文件内容不正确");
+        },
+        _ => panic!("read_file工具执行应该成功"),
+    }
+}
+
+#[tokio::test]
+async fn test_tool_executor_write_file() {
+    // 测试执行write_file工具
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    
+    // 创建临时文件用于测试
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let temp_path = temp_file.path().to_str().unwrap();
+    
+    // 执行write_file工具
+    let params = serde_json::json!({"path": temp_path, "content": "New content"});
+    let result = executor.execute("write_file", params).await;
+    assert!(result.is_ok(), "执行write_file工具失败");
+    
+    let tool_result = result.unwrap();
+    match tool_result {
+        codex::tools::executor::ToolResult::Success(_) => {
+            // 验证文件内容
+            let content = fs::read_to_string(temp_path).unwrap();
+            assert_eq!(content, "New content", "写入的文件内容不正确");
+        },
+        _ => panic!("write_file工具执行应该成功"),
+    }
+}
+
+#[tokio::test]
+async fn test_tool_executor_missing_params() {
+    // 测试执行工具时缺少必填参数
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    
+    // 执行read_file工具但缺少path参数
+    let params = serde_json::json!({});
+    let result = executor.execute("read_file", params).await;
+    assert!(result.is_ok(), "执行read_file工具失败");
+    
+    let tool_result = result.unwrap();
+    match tool_result {
+        codex::tools::executor::ToolResult::Error(msg) => {
+            assert!(msg.contains("缺少必填参数") || msg.contains("缺少path参数"), "应该提示缺少必填参数");
+        },
+        _ => panic!("缺少必填参数时应该返回错误"),
+    }
+}
+
+#[tokio::test]
+async fn test_tool_executor_nonexistent_tool() {
+    // 测试执行不存在的工具
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    
+    let params = serde_json::json!({});
+    let result = executor.execute("nonexistent_tool", params).await;
+    assert!(result.is_ok(), "执行不存在的工具失败");
+    
+    let tool_result = result.unwrap();
+    match tool_result {
+        codex::tools::executor::ToolResult::Error(msg) => {
+            assert!(msg.contains("不存在"), "应该提示工具不存在");
+        },
+        _ => panic!("执行不存在的工具时应该返回错误"),
+    }
+}
+
+#[tokio::test]
+async fn test_tool_executor_unimplemented_tool() {
+    // 测试执行已注册但未实现的工具
+    let registry = std::sync::Arc::new(
+        std::sync::RwLock::new(
+            ToolRegistry::new().unwrap()
+        )
+    );
+    let executor = codex::tools::executor::ToolExecutor::new(registry);
+    
+    // 执行write_file工具（已注册且在executor中实现）
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let temp_path = temp_file.path().to_str().unwrap();
+    let params = serde_json::json!({"path": temp_path, "content": "test"});
+    let result = executor.execute("write_file", params).await;
+    assert!(result.is_ok(), "执行write_file工具失败");
+    
+    // 执行一个不存在的工具
+    let params = serde_json::json!({});
+    let result = executor.execute("nonexistent_tool", params).await;
+    assert!(result.is_ok(), "执行不存在的工具失败");
+    
+    let tool_result = result.unwrap();
+    match tool_result {
+        codex::tools::executor::ToolResult::Error(msg) => {
+            assert!(msg.contains("不存在"), "应该提示工具不存在");
+        },
+        _ => panic!("执行不存在的工具时应该返回错误"),
+    }
+}
