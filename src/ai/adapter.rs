@@ -5,9 +5,9 @@
 use crate::ai::prompt::PromptManager;
 use crate::context::{ContextItem, ContextItemType, ContextManager};
 use crate::error::AppResult;
+use hashbrown::HashMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -467,8 +467,18 @@ pub struct AIProviderFactory {
 impl AIProviderFactory {
     /// 创建新的AI平台工厂
     pub fn new() -> Self {
+        // 配置HTTP客户端，添加连接池管理和超时设置
+        let client = Client::builder()
+            .timeout(Duration::from_secs(60)) // 设置请求超时为60秒
+            .connect_timeout(Duration::from_secs(10)) // 设置连接超时为10秒
+            .tcp_keepalive(Some(Duration::from_secs(30))) // 启用TCP Keepalive
+            .pool_idle_timeout(Duration::from_secs(300)) // 连接池空闲超时为5分钟
+            .pool_max_idle_per_host(10) // 每个主机的最大空闲连接数
+            .build()
+            .expect("Failed to create HTTP client");
+
         Self {
-            client: Arc::new(Client::new()),
+            client: Arc::new(client),
         }
     }
 
@@ -539,53 +549,86 @@ impl AIProvider for OpenAIProvider {
             temperature: Some(0.7),
         };
 
-        // 发送请求到OpenAI API
         let base_url = self
             .model
             .base_url
             .clone()
             .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-        let response = self
-            .client
-            .post(format!("{}/chat/completions", base_url))
-            .header("Authorization", format!("Bearer {}", self.model.api_key))
-            .header("Content-Type", "application/json")
-            .json(&chat_request)
-            .send()
-            .await
-            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+        let url = format!("{}/chat/completions", base_url);
 
-        // 检查响应状态
-        if !response.status().is_success() {
-            let error_body = response
-                .text()
-                .await
-                .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-            return Err(crate::error::AppError::ai(&format!(
-                "OpenAI API请求失败: {}",
-                error_body
-            )));
+        // 实现请求重试机制，最多重试3次
+        let max_retries = 3;
+        let mut retry_count = 0;
+
+        loop {
+            // 发送请求到OpenAI API
+            let response_result = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.model.api_key))
+                .header("Content-Type", "application/json")
+                .json(&chat_request)
+                .send()
+                .await;
+
+            match response_result {
+                Ok(response) => {
+                    // 检查响应状态
+                    if response.status().is_success() {
+                        // 解析响应
+                        match response.json::<OpenAIChatResponse>().await {
+                            Ok(openai_response) => {
+                                // 提取响应内容
+                                let choice = openai_response.choices.first().ok_or(
+                                    crate::error::AppError::ai("OpenAI API响应中没有选择项"),
+                                )?;
+
+                                // 构建AIResponse
+                                return Ok(AIResponse {
+                                    content: choice.message.content.clone(),
+                                    model: openai_response.model,
+                                    platform: self.model.platform,
+                                    tokens_used: openai_response
+                                        .usage
+                                        .map(|usage| usage.total_tokens),
+                                });
+                            }
+                            Err(e) => {
+                                // 解析错误，重试
+                                retry_count += 1;
+                                if retry_count > max_retries {
+                                    return Err(crate::error::AppError::ai(&e.to_string()));
+                                }
+                                // 等待一段时间后重试，使用指数退避策略
+                                tokio::time::sleep(Duration::from_secs(
+                                    2u64.pow(retry_count as u32),
+                                ))
+                                .await;
+                            }
+                        }
+                    } else {
+                        // 非成功状态码，直接返回错误
+                        let error_body = response
+                            .text()
+                            .await
+                            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+                        return Err(crate::error::AppError::ai(&format!(
+                            "OpenAI API请求失败: {}",
+                            error_body
+                        )));
+                    }
+                }
+                Err(e) => {
+                    // 网络错误，重试
+                    retry_count += 1;
+                    if retry_count > max_retries {
+                        return Err(crate::error::AppError::ai(&e.to_string()));
+                    }
+                    // 等待一段时间后重试，使用指数退避策略
+                    tokio::time::sleep(Duration::from_secs(2u64.pow(retry_count as u32))).await;
+                }
+            }
         }
-
-        // 解析响应
-        let openai_response: OpenAIChatResponse = response
-            .json()
-            .await
-            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-
-        // 提取响应内容
-        let choice = openai_response
-            .choices
-            .first()
-            .ok_or(crate::error::AppError::ai("OpenAI API响应中没有选择项"))?;
-
-        // 构建AIResponse
-        Ok(AIResponse {
-            content: choice.message.content.clone(),
-            model: openai_response.model,
-            platform: self.model.platform,
-            tokens_used: openai_response.usage.map(|usage| usage.total_tokens),
-        })
     }
 
     async fn generate_code(&self, prompt: &str, language: &str) -> AppResult<String> {
@@ -638,57 +681,90 @@ impl AIProvider for AnthropicProvider {
             temperature: Some(0.7),
         };
 
-        // 发送请求到Anthropic API
         let base_url = self
             .model
             .base_url
             .clone()
             .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string());
-        let response = self
-            .client
-            .post(format!("{}/messages", base_url))
-            .header("x-api-key", &self.model.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("Content-Type", "application/json")
-            .json(&chat_request)
-            .send()
-            .await
-            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+        let url = format!("{}/messages", base_url);
 
-        // 检查响应状态
-        if !response.status().is_success() {
-            let error_body = response
-                .text()
-                .await
-                .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-            return Err(crate::error::AppError::ai(&format!(
-                "Anthropic API请求失败: {}",
-                error_body
-            )));
+        // 实现请求重试机制，最多重试3次
+        let max_retries = 3;
+        let mut retry_count = 0;
+
+        loop {
+            // 发送请求到Anthropic API
+            let response_result = self
+                .client
+                .post(&url)
+                .header("x-api-key", &self.model.api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .json(&chat_request)
+                .send()
+                .await;
+
+            match response_result {
+                Ok(response) => {
+                    // 检查响应状态
+                    if response.status().is_success() {
+                        // 解析响应
+                        match response.json::<AnthropicChatResponse>().await {
+                            Ok(anthropic_response) => {
+                                // 提取响应内容
+                                let content = anthropic_response
+                                    .content
+                                    .iter()
+                                    .map(|c| c.text.clone())
+                                    .collect::<String>();
+
+                                // 构建AIResponse
+                                return Ok(AIResponse {
+                                    content,
+                                    model: anthropic_response.model,
+                                    platform: self.model.platform,
+                                    tokens_used: Some(
+                                        anthropic_response.usage.input_tokens
+                                            + anthropic_response.usage.output_tokens,
+                                    ),
+                                });
+                            }
+                            Err(e) => {
+                                // 解析错误，重试
+                                retry_count += 1;
+                                if retry_count > max_retries {
+                                    return Err(crate::error::AppError::ai(&e.to_string()));
+                                }
+                                // 等待一段时间后重试，使用指数退避策略
+                                tokio::time::sleep(Duration::from_secs(
+                                    2u64.pow(retry_count as u32),
+                                ))
+                                .await;
+                            }
+                        }
+                    } else {
+                        // 非成功状态码，直接返回错误
+                        let error_body = response
+                            .text()
+                            .await
+                            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+                        return Err(crate::error::AppError::ai(&format!(
+                            "Anthropic API请求失败: {}",
+                            error_body
+                        )));
+                    }
+                }
+                Err(e) => {
+                    // 网络错误，重试
+                    retry_count += 1;
+                    if retry_count > max_retries {
+                        return Err(crate::error::AppError::ai(&e.to_string()));
+                    }
+                    // 等待一段时间后重试，使用指数退避策略
+                    tokio::time::sleep(Duration::from_secs(2u64.pow(retry_count as u32))).await;
+                }
+            }
         }
-
-        // 解析响应
-        let anthropic_response: AnthropicChatResponse = response
-            .json()
-            .await
-            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-
-        // 提取响应内容
-        let content = anthropic_response
-            .content
-            .iter()
-            .map(|c| c.text.clone())
-            .collect::<String>();
-
-        // 构建AIResponse
-        Ok(AIResponse {
-            content,
-            model: anthropic_response.model,
-            platform: self.model.platform,
-            tokens_used: Some(
-                anthropic_response.usage.input_tokens + anthropic_response.usage.output_tokens,
-            ),
-        })
     }
 
     async fn generate_code(&self, prompt: &str, language: &str) -> AppResult<String> {
@@ -738,54 +814,88 @@ impl AIProvider for OllamaProvider {
             temperature: Some(0.7),
         };
 
-        // 发送请求到Ollama API（默认本地地址）
         let base_url = self
             .model
             .base_url
             .clone()
             .unwrap_or_else(|| "http://localhost:11434/api".to_string());
-        let response = self
-            .client
-            .post(format!("{}/chat/completions", base_url))
-            .header("Content-Type", "application/json")
-            .json(&chat_request)
-            .send()
-            .await
-            .map_err(|e| {
-                crate::error::AppError::ai(&format!("Ollama API连接失败: {}", e.to_string()))
-            })?;
+        let url = format!("{}/chat/completions", base_url);
 
-        // 检查响应状态
-        if !response.status().is_success() {
-            let error_body = response
-                .text()
-                .await
-                .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-            return Err(crate::error::AppError::ai(&format!(
-                "Ollama API请求失败: {}",
-                error_body
-            )));
+        // 实现请求重试机制，最多重试3次
+        let max_retries = 3;
+        let mut retry_count = 0;
+
+        loop {
+            // 发送请求到Ollama API
+            let response_result = self
+                .client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .json(&chat_request)
+                .send()
+                .await;
+
+            match response_result {
+                Ok(response) => {
+                    // 检查响应状态
+                    if response.status().is_success() {
+                        // 解析响应
+                        match response.json::<OllamaChatResponse>().await {
+                            Ok(ollama_response) => {
+                                // 计算使用的令牌数
+                                let tokens_used =
+                                    ollama_response.prompt_eval_count.map(|prompt_count| {
+                                        let eval_count = ollama_response.eval_count.unwrap_or(0);
+                                        prompt_count + eval_count
+                                    });
+
+                                // 构建AIResponse
+                                return Ok(AIResponse {
+                                    content: ollama_response.message.content,
+                                    model: ollama_response.model,
+                                    platform: self.model.platform,
+                                    tokens_used,
+                                });
+                            }
+                            Err(e) => {
+                                // 解析错误，重试
+                                retry_count += 1;
+                                if retry_count > max_retries {
+                                    return Err(crate::error::AppError::ai(&e.to_string()));
+                                }
+                                // 等待一段时间后重试，使用指数退避策略
+                                tokio::time::sleep(Duration::from_secs(
+                                    2u64.pow(retry_count as u32),
+                                ))
+                                .await;
+                            }
+                        }
+                    } else {
+                        // 非成功状态码，直接返回错误
+                        let error_body = response
+                            .text()
+                            .await
+                            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
+                        return Err(crate::error::AppError::ai(&format!(
+                            "Ollama API请求失败: {}",
+                            error_body
+                        )));
+                    }
+                }
+                Err(e) => {
+                    // 网络错误或连接失败，重试
+                    retry_count += 1;
+                    if retry_count > max_retries {
+                        return Err(crate::error::AppError::ai(&format!(
+                            "Ollama API连接失败: {}",
+                            e.to_string()
+                        )));
+                    }
+                    // 等待一段时间后重试，使用指数退避策略
+                    tokio::time::sleep(Duration::from_secs(2u64.pow(retry_count as u32))).await;
+                }
+            }
         }
-
-        // 解析响应
-        let ollama_response: OllamaChatResponse = response
-            .json()
-            .await
-            .map_err(|e| crate::error::AppError::ai(&e.to_string()))?;
-
-        // 计算使用的令牌数
-        let tokens_used = ollama_response.prompt_eval_count.map(|prompt_count| {
-            let eval_count = ollama_response.eval_count.unwrap_or(0);
-            prompt_count + eval_count
-        });
-
-        // 构建AIResponse
-        Ok(AIResponse {
-            content: ollama_response.message.content,
-            model: ollama_response.model,
-            platform: self.model.platform,
-            tokens_used,
-        })
     }
 
     async fn generate_code(&self, prompt: &str, language: &str) -> AppResult<String> {
@@ -922,8 +1032,8 @@ impl AIClient {
     pub async fn generate_code(&self, prompt: &str, language: Option<&str>) -> AppResult<String> {
         let language = language.unwrap_or("rust");
 
-        // 准备提示词变量
-        let mut variables = HashMap::new();
+        // 准备提示词变量，使用std::collections::HashMap以匹配render_template方法的参数类型
+        let mut variables = std::collections::HashMap::new();
         variables.insert("requirement".to_string(), prompt.to_string());
         variables.insert("language".to_string(), language.to_string());
 
@@ -943,8 +1053,8 @@ impl AIClient {
     pub async fn explain_code(&self, code: &str, language: Option<&str>) -> AppResult<String> {
         let language = language.unwrap_or("rust");
 
-        // 准备提示词变量
-        let mut variables = HashMap::new();
+        // 准备提示词变量，使用std::collections::HashMap以匹配render_template方法的参数类型
+        let mut variables = std::collections::HashMap::new();
         variables.insert("code".to_string(), code.to_string());
         variables.insert("language".to_string(), language.to_string());
 

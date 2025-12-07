@@ -6,12 +6,11 @@ use crate::config::app::KnowledgeConfig;
 use crate::error::AppResult;
 use crate::knowledge::base::CodeFile;
 use crate::parsers::{initialize_parsers, CodeElement, CodeElementType, PARSER_REGISTRY};
+use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::SystemTime;
 
 /// 索引缓存项，存储单个文件的索引信息
@@ -42,8 +41,8 @@ pub struct IndexCache {
     pub file_count: usize,
     /// 索引代码元素总数
     pub total_elements: usize,
-    /// 文件缓存映射
-    pub files: HashMap<String, IndexCacheItem>,
+    /// 文件缓存映射，使用高效的哈希表实现
+    pub files: hashbrown::HashMap<String, IndexCacheItem>,
 }
 
 impl Default for IndexCache {
@@ -55,7 +54,7 @@ impl Default for IndexCache {
             updated_at: now,
             file_count: 0,
             total_elements: 0,
-            files: HashMap::new(),
+            files: hashbrown::HashMap::new(),
         }
     }
 }

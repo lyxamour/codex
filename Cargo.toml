@@ -57,6 +57,7 @@ dirs = "6.0.0"
 thiserror = "2.0.17"
 eyre = "0.6"
 color-eyre = "0.6"
+hashbrown = { version = "0.16.1", features = ["serde"] }
 
 
 [build-dependencies]
