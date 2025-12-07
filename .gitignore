@@ -58,7 +58,7 @@ Cargo.lock
 *.rs.bk
 
 # Generated documentation
-docs/
+docs/generated/
 
 # Local configuration files
 .codex_config.json
